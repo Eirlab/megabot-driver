@@ -1,6 +1,10 @@
-# Projet template Mbed pour Eirbot
+# Guide "Saint Graal" d'installation Mbed sous Windows - Projet template Eirbot
 
-Ce répo est un projet de base pour pouvoir utiliser Mbed sur les Nucleo F446RE de l'association Eirbot.
+<img title="" src="https://avatars.githubusercontent.com/u/8916057?s=280&v=4" alt="mbed" width="159"> <img title="" src="https://www.breizh-info.com/wp-content/uploads/2022/12/fusion.jpeg" alt="a" width="287"> <img title="" src="https://eirbot.github.io/images/LogoEirbot.png" alt="eirbot" width="176">
+
+
+
+Ce répo est un projet de base pour pouvoir utiliser Mbed sur les Nucleo F446RE de l'association Eirbot. Il est accompagné de ce README pour vous expliquer comment installer et utiliser MbedOS sur Windows.
 
 MbedOs est un *RTOS* (Real Time Operating System). Pour faire (très) court, comparé à Arduino, vous pouvez faire plusieurs tâche en parallèle (plusieurs *Threads*). Par exemple une tâche pour l'odométrie, une tâche pour l'asservissement moteur, une tâche pour la stratégie du robot ... Plus besoin de s'arracher les cheveux dans sa fonction `loop()` d'Arduino pour tout faire fonctionner en même temps.
 
@@ -12,17 +16,19 @@ ARM fournit deux outils en ligne de commande pour compiler un projet Mbed :
 
 De plus, ARM fournit un éditeur tout-en-un qui permet de déployer, compiler et uploader sur une carte compatible Mbed : **MbedStudio**. Pour les jeunes loutres qui ont peur de l'invite des commandes, c'est l'option préférée.
 
-Plusieurs types d'installations seront vus dans ce README, à vous de voir celle qui vous correspond le mieux. 
+Plusieurs types d'installations seront vus dans ce README, à vous de voir celle qui vous ![]()correspond le mieux. 
 
 *NOTE : ce tutoriel est tourné vers les personnes qui utilisent principalement **Windows**, soit une très grande partie d'Eirbot. Si vous voulez installer MbedCLI sur Linux/Ubuntu, je vous conseille de jeter un oeil sur les forums et autres méthodes d'installation proposé par Arm Mbed.*
 
-> ***J'ai déjà PlatformIO, pourquoi ne pas tout simplement l'utiliser au lieu de s'embêter à installer d'autres outils ?***
+> ***J'ai déjà PlatformIO, pourquoi ne pas l'utiliser au lieu de s'embêter à installer d'autres outils ?***
 > 
 > Parce que les packages de PlatformIO n'ont pas été mis à jour depuis trop longtemps. La dernière version officielle d'MbedOs [est actuellement la 6.17](https://github.com/ARMmbed/mbed-os/releases), alors que [PIO est resté bloqué sur la 6.9](https://registry.platformio.org/tools/platformio/framework-mbed/versions). Beaucoup trop de changement entre les deux versions rend l'intercompatibilité quasi impossible. Pour le moment, je recommande d'utiliser les outils fournis par Mbed pour profiter des dernières version du *RTOS*.
 
 **Avant de commencer** : Il est conseillé de lire tout le tutoriel, notamment les lignes commençant par "**ATTENTION**", au risque de griller des étapes et de devoir, par exemple, modifier ses variables d'environnement pour rectifier le tir ...
 
 ## 0] Un invite de commande améliorée : Cmder
+
+<img src="https://camo.githubusercontent.com/73651fee2f0ec76a2dc55be36373ed61a63dc80b90cfe2763cf294a24444b587/687474703a2f2f692e696d6775722e636f6d2f67316e4e6630492e706e67" title="" alt="a" data-align="center">
 
 Cette étape est facultative, mais je la conseille fortement pour les utilisateurs Windows. Même si vous êtes allergiques aux invites de commandes, ça permet à un ancien de vous aider rapidement. 
 
@@ -46,6 +52,8 @@ Cette étape est facultative, mais je la conseille fortement pour les utilisateu
 
 ## 1] Le compilateur : ARM GCC
 
+<img src="https://chipcode-nl.gallerycdn.vsassets.io/extensions/chipcode-nl/gcc-arm-windows/1.0.1/1611260807399/Microsoft.VisualStudio.Services.Icons.Default" title="" alt="arm" data-align="center">
+
 Quelle que soit la manière d'installer les outils Mbed sur votre machine, il vous faut d'abord installer la chaine de compilation nécessaire pour compiler un projet Mbed. La dernière version officielle ([maj du 1er mars 2023](https://os.mbed.com/docs/mbed-os/v6.16/build-tools/index.html)) est la 10.3-2021.07, recommandée depuis MbedOs 6.16.
 
 1. Télécharger et lancer l'installation de [GCC GNU ARM 10.3-2021.07](https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.07/gcc-arm-none-eabi-10.3-2021.07win32/gcc-arm-none-eabi-10.3-2021.07-win32.exe).
@@ -55,6 +63,8 @@ Quelle que soit la manière d'installer les outils Mbed sur votre machine, il vo
 3. Optionnel : Pour vérifier l'installation, ouvrir une invite de commande (clique droit > "Cmder here") et taper `arm-none-eabi-gcc --version`
 
 ## 2] Choix 1 : MbedStudio
+
+![mbed studio](https://os.mbed.com/docs/mbed-studio/current/editing-linting/images/navigate_code.gif)
 
 L'IDE MbedStudio permet de coder rapidement avec MbedOs. C'est une version modifiée de VsCode, avec une interface simplifiée vous permettant de compiler, uploader, ouvrir un port COM, sans toucher à une invite de commande. Attention en revanche, il sera nécessaire de créer un compte Arm Mbed pour accéder ensuite à l'IDE (gratuit).
 
@@ -87,6 +97,8 @@ Vous pouvez désormais ouvrir MbedStudio, et compiler le programme d'exemple d'e
 
 ## 3] Choix 2 : Mbed en ligne de commande
 
+![mbedcli](https://mblogthumb-phinf.pstatic.net/MjAxOTA2MjdfMTE1/MDAxNTYxNjA4MzQyNDIy.0-AWnmuA7St2lKvY5A5a3OagrrRxpaU3QkI9TnhHJRQg.9aDioLnM_6aa45FzOo-cUBk1YG3_JZM9r1ax5l6FY6Yg.PNG.roboholic84/K-20190627-470232.png?type=w2)
+
 Si vous êtes un peu plus à l'aise avec une invite de commande, vous pouvez installer Mbed CLI 1 à l'aide de python, et y avoir accès partout sur votre machine.
 
 **ATTENTION** : ne surtout pas utiliser l'installateur fourni par ARM ([ce truc](https://os.mbed.com/docs/mbed-os/v6.16/quick-start/build-with-mbed-cli.html)), c'est une ancienne version d'Mbed CLI qui utilise une ancienne version de python non recommandée.
@@ -102,13 +114,21 @@ Si vous êtes un peu plus à l'aise avec une invite de commande, vous pouvez ins
 <details>
   <summary>Sources</summary>
 
-  https://github.com/mbed-ce/mbed-os/wiki/Toolchain-Setup-Guide
-  https://dev.to/naruaika/why-i-didn-t-install-python-from-the-microsoft-store-5cbd
-  https://docs.python.org/3/using/windows.html#known-issues
-  https://stackoverflow.com/questions/56974927/permission-denied-trying-to-run-python-on-windows-10/57447610#57447610
-  https://devrant.com/rants/2283963/who-the-fuck-at-microsoft-decided-to-put-python-on-their-store-i-don-t-care-if-i
-  https://stackoverflow.com/a/57421906   https://www.reddit.com/r/learnpython/comments/tsqsrt/python_38_from_windows_store_not_working_no/
-  https://github.com/python-poetry/poetry/issues/5331#issuecomment-1169731615
+* https://github.com/mbed-ce/mbed-os/wiki/Toolchain-Setup-Guide
+
+* https://dev.to/naruaika/why-i-didn-t-install-python-from-the-microsoft-store-5cbd
+
+* https://docs.python.org/3/using/windows.html#known-issues
+
+* https://stackoverflow.com/questions/56974927/permission-denied-trying-to-run-python-on-windows-10/57447610#57447610
+
+* https://devrant.com/rants/2283963/who-the-fuck-at-microsoft-decided-to-put-python-on-their-store-i-don-t-care-if-i
+
+* https://stackoverflow.com/a/57421906   
+
+* https://www.reddit.com/r/learnpython/comments/tsqsrt/python_38_from_windows_store_not_working_no/
+
+* https://github.com/python-poetry/poetry/issues/5331#issuecomment-1169731615
 
 </details>
 
@@ -190,7 +210,7 @@ Toutes ses commandes sont à faire à la racine du projet.
 
 ## 5] Les fichiers d'un projet MbedOS
 
-WIP
+![folder](https://global.discourse-cdn.com/standard17/uploads/mbed/original/2X/d/d12443b0ed678b2d3111c35dda9c44f0bda22f5e.png)
 
 * `.mbedignore` : accélère la compilation en disant à MbedCLI 1 de ne pas tout compiler, très pratique sous Windows.
 
@@ -204,6 +224,6 @@ WIP
 
 - Expliquer comment installer MbedCLI 1 sous Python 3.11 avec les outils Build Tool de Visual Studio.
 
-- Ajouter des images/screens/gifs ?
+- Ajouter des images/screens/gifs ? Utiliser des images perso au lieu d'internet.
 
 - Terminer le point numéro 5 (WIP).
