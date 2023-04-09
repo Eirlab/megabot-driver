@@ -1,0 +1,60 @@
+@startuml
+'https://plantuml.com/class-diagram
+
+package "Type & Struct"<<folder>>{
+class pinOutActuator_t{
+    + PWM   \t : PinName
+    + DIR1  \t : PinName
+    + DIR2  \t : PinName
+}
+
+enum linearActuator_t{
+    baseLeg     \t : 0
+    middleLeg   \t : 1
+    endLeg      \t : 2
+}
+
+}
+
+
+package "Class" {
+class Leg {
+    Leg(BufferedSerial* serial, LinearActuator* baseLeg, LinearActuator* middleLeg, LinearActuator* endLeg)
+== Methods ==
+    + getInfos() : Envoie sur le port série des infos de la Leg
+
+-- Fields --
+    + id : uint8_t
+    - serial : BufferedSerial
+
+}
+
+class LinearActuator{
+    LinearActuator(linearActuator_t actuator, struct pinOutActuator_t pinOut)
+    ==Methods==
+    + getElongation() : float
+    + setElongation(float target) : bool
+    -- Fields --
+    - _id      \t\t : linearActuator_t
+    - _pinOut    \t : pinOutActuator_t
+    - _offsetMin \t : float
+    - _offsetMax \t : float
+}
+
+}
+
+
+
+object LinearActuator_baseLeg
+object LinearActuator_middleLeg
+object LinearActuator_endLeg
+
+LinearActuator_baseLeg      - LinearActuator
+LinearActuator_middleLeg    - LinearActuator
+LinearActuator_endLeg       - LinearActuator
+
+LinearActuator_baseLeg      --* Leg
+LinearActuator_middleLeg    --* Leg
+LinearActuator_endLeg       --* Leg
+
+@enduml
