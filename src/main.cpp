@@ -3,13 +3,9 @@
  * ************************************************/
 
 #include "mbed.h"
+DigitalOut led (LED1);
 
-
-
-
-
-int main() {
-
+int main(){
 
     // init led at 0
     led = 0;
