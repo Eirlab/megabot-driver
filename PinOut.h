@@ -10,29 +10,37 @@
 DigitalOut(Mux_PinOut_A);
 DigitalOut(Mux_PinOut_B);
 
-#define Leg1_baseLeg_PWM    PB_7
-#define Leg1_baseLeg_DIR1   PC_14
-#define Leg1_baseLeg_DIR2   PC_15
+#define Leg1_baseLeg_PWM            PB_7
+#define Leg1_baseLeg_DIR1           PC_14
+#define Leg1_baseLeg_DIR2           PC_15
+#define Leg1_baseLeg_trigMinMax     PH_0
 
-#define Leg1_middleLeg_PWM  PB_0
-#define Leg1_middleLeg_DIR1 PC_2
-#define Leg1_middleLeg_DIR2 PC_3
+#define Leg1_middleLeg_PWM          PB_0
+#define Leg1_middleLeg_DIR1         PC_2
+#define Leg1_middleLeg_DIR2         PC_3
+#define Leg1_middleLeg_trigMinMax   PC_1
 
-#define Leg1_endLeg_PWM     PA_15
-#define Leg1_endLeg_DIR1    PA_14
-#define Leg1_endLeg_DIR2    PA_13
+#define Leg1_endLeg_PWM             PA_15
+#define Leg1_endLeg_DIR1            PA_14
+#define Leg1_endLeg_DIR2            PA_13
+#define Leg1_endLeg_trigMinMax      PC_12
 
-#define Leg2_baseLeg_PWM    PC_9
-#define Leg2_baseLeg_DIR1   PC_8
-#define Leg2_baseLeg_DIR2   PC_6
+#define Leg2_baseLeg_PWM            PC_9
+#define Leg2_baseLeg_DIR1           PC_8
+#define Leg2_baseLeg_DIR2           PC_6
+#define Leg2_baseLeg_trigMinMax     PB_8
 
-#define Leg2_middleLeg_PWM  PB_4
-#define Leg2_middleLeg_DIR1 PB_5
-#define Leg2_middleLeg_DIR2 PB_3
+#define Leg2_middleLeg_PWM          PB_4
+#define Leg2_middleLeg_DIR1         PB_5
+#define Leg2_middleLeg_DIR2         PB_3
+#define Leg2_middleLeg_trigMinMax   PB_10
 
-#define Leg2_endLeg_PWM     PB_15
-#define Leg2_endLeg_DIR1    PB_14
-#define Leg2_endLeg_DIR2    PB_13
+
+#define Leg2_endLeg_PWM             PB_15
+#define Leg2_endLeg_DIR1            PB_14
+#define Leg2_endLeg_DIR2            PB_13
+#define Leg2_endLeg_trigMinMax      PB_12
+
 
 
 
