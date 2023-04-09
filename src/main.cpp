@@ -44,8 +44,6 @@ bool check_nano(uint32_t value, int &legId, int &laId, int &outvalue){
   struct nanoValue *v=(struct nanoValue *)&value;
   if (v->header==0x55){
     if (v->check == get_crc(value&0xFF,(value>>8)&0xFF)){
-      int l=snprintf(buffer,500,"checking value %x, 0x55 ok: comparing: %x with %x ^ %x\n",value,v->check,value&0xFF,(value>>8)&0xFF);
-      pc.write(buffer, l);
       legId=v->legId;
       laId=v->actuatorId;
       outvalue=v->value;
