@@ -1,0 +1,111 @@
+@startuml
+'https://plantuml.com/class-diagram
+
+package "Type and Define" <<folder>>{
+enum LinearActuatorLeg_t {
+    baseLeg     \t : 1
+    middleLeg   \t : 2
+    endLeg      \t : 3
+}
+
+enum Leg_t {
+    leg1    \t : 1
+    leg2    \t : 2
+    leg3    \t : 3
+    leg4    \t : 4
+}
+}
+
+class Leg {
+    Leg(Leg_t leg_id, LinearActuator* base_leg, LinearActuator* middle_leg, LinearActuator* end_leg)
+== \t Methods \t\t ==
+    + getInfos() : Envoie sur le port série des infos de la Leg
+    + updateValuePositionInt(LinearActuatorLeg_t linear_actuator, uint16_t mesureInt)
+    + getId() : Leg_t
+-- \t Fields \t\t --
+    + Leg_t legId;
+    + LinearActuator *linear_actuator_baseLeg;
+    + LinearActuator *linear_actuator_middleLeg;
+    + LinearActuator *linear_actuator_endLeg;
+
+}
+
+class LinearActuator{
+    LinearActuator(linearActuator_t actuator, struct pinOutActuator_t pinOut)
+== \t Methods \t\t ==
+    + getElongation() : float
+    + setElongation(float target) : bool
+-- \t Fields \t\t  --
+    - IdLinearActuator  : LinearActuatorLeg_t
+    - positionMm        : float
+    - trigMin           : uint16_t
+    - trigMax           : uint16_t
+    - emergencyFlag     : EventFlags*
+}
+
+
+class MuxCommunication{
+    MuxCommunication  ( \t PinName channelA,
+             \t\t\t\t\t PinName channelB,
+             \t\t\t\t\t PinName TXLegA,
+             \t\t\t\t\t PinName TXLegB,
+             \t\t\t\t\t EventFlags *emergency,
+             \t\t\t\t\t Leg *leg_A,
+             \t\t\t\t\t Leg *leg_B  )
+== \t Methods \t\t ==
+    + threadWorker() : void
+    - check_nano(uint32_t value, uint16_t &mesureInt) : bool
+    - {static} get_crc(unsigned char v1, unsigned char v2) : unsigned char
+    - {static} update_crc(unsigned char &crc) : void
+
+-- \t Fields \t\t --
+    -A : DigitalOut *
+    -B : DigitalOut *
+    -TXLegA : BufferedSerial *
+    -TXLegB : BufferedSerial *
+    -legA : Leg *
+    -legB : Leg *
+    -wordAB : uint8_t
+    -linearActuatorSelected : LinearActuatorLeg_t
+    -legSelected : Leg_t
+    -emergencyFlag : EventFlags *
+}
+
+class MasterCommunication {
+MasterCommunication ( PinName USBTX,
+           \t\t\t\t\t PinName USBRX,
+           \t\t\t\t\t EventFlags *emergency,
+           \t\t\t\t\t Leg *leg_A,
+           \t\t\t\t\t Leg *leg_B  )
+== \t Methods \t\t ==
+    + threadWorker() : void
+    + parseCmd() : struct cmd
+    + sendCmd(struct cmd) : bool
+
+
+-- \t Fields \t\t --
+}
+
+
+object baseLegA
+object middleLegA
+object endLegA
+
+baseLegA      - LinearActuator
+middleLegA    - LinearActuator
+endLegA       - LinearActuator
+
+baseLegA      --* Leg
+middleLegA    --* Leg
+endLegA       --* Leg
+
+object legA
+object legB
+
+legA - Leg
+legB - Leg
+
+legA --* MuxCommunication
+legB --* MuxCommunication
+
+@enduml
