@@ -2,20 +2,59 @@
 #define MEGABOT_DRIVER_LINEARACTUATOR_H
 
 #include "mbed.h"
+#include "GlobalConfig.h"
 
-enum LinearActuatorLeg{
-    baseLeg, middleLeg, endLeg
+enum LinearActuatorLeg_t{
+    baseLeg     = 1,
+    middleLeg   = 2,
+    endLeg      = 3
 };
-
-
-
 
 class LinearActuator {
-//    LinearActuator(uint8_t id, struct PinLinearActuator);
+    //TODO Documentation
+public:
+    LinearActuator(LinearActuatorLeg_t linear_actuator_position_leg, PinName PWM, PinName DIR1, PinName DIR2,
+                   uint16_t position_int_min, uint16_t position_int_max, EventFlags *emergency_flag);
     ~LinearActuator();
 
+    float getPosition();
+    bool setPosition(float target);
 
+    uint16_t positionInt; // lecture de la position du vérin par rapport à communication sur la Nano
+
+private:
+    LinearActuatorLeg_t IdLinearActuator;
+    PwmOut* pwm;
+    DigitalOut* dir1;
+    DigitalOut* dir2;
+    EventFlags* emergencyFlag;
+
+    float positionMm;
+    uint16_t trigMin;
+    uint16_t trigMax;
+
+    float target, error;
+    enum sens_t{
+        none = 0,
+        forward = 1,
+        backward = -1
+    };
+    sens_t sens;
+
+    /**
+     * Configure les pins DIR1 et DIR2 pour que le sens soit correct
+     * @param sensTarget : sens_t
+     */
+    void setSens(sens_t sensTarget);
+
+    /**
+     * Applique le bon rapport à la PWM en prenant en compte la rampe de démarrage
+     * @param intensity : (float)
+     */
+    void setPwm(float intensity);
+    Timer timeRampe;
 };
+
 
 
 #endif //MEGABOT_DRIVER_LINEARACTUATOR_H
