@@ -2,10 +2,10 @@
 #define MEGABOT_DRIVER_PINOUT_H
 #include "mbed.h"
 
-#define pin_Mux_PinOut_A        PB_1
-#define pin_Mux_PinOut_B        PB_2
-#define pin_Mux_PinOut_TX_LEGA  PA_10
-#define pin_Mux_PinOut_TX_LEGB  PC_5
+#define pin_Mux_PinOut_A                PB_1
+#define pin_Mux_PinOut_B                PB_2
+#define pin_Mux_PinOut_TX_LEGA          PA_10
+#define pin_Mux_PinOut_TX_LEGB          PC_5
 
 #define pin_LegA_baseLeg_PWM            PB_7
 #define pin_LegA_baseLeg_DIR1           PC_14
@@ -35,20 +35,6 @@
 #define pin_LegB_endLeg_PWM             PB_15
 #define pin_LegB_endLeg_DIR1            PB_14
 #define pin_LegB_endLeg_DIR2            PB_13
-#define pin_LegBb_endLeg_trigMinMax      PB_12
-
-
-struct PinOut_LinearActuator_t {
-    PinName PWM;
-    PinName DIR1;
-    PinName DIR2;
-};
-
-struct PinOut_Mux_t {
-    PinName A;
-    PinName B;
-    PinName TX_Leg1;
-    PinName TX_Leg2;
-};
+#define pin_LegBb_endLeg_trigMinMax     PB_12
 
 #endif //MEGABOT_DRIVER_PINOUT_H
