@@ -1,7 +1,19 @@
 #ifndef MEGABOT_DRIVER_GLOBALCONFIG_H
 #define MEGABOT_DRIVER_GLOBALCONFIG_H
 
+/* ************************************************
+ *                   Flags
+ * ************************************************/
+#define FlagRunCmd              0x47
+
+
+/* ************************************************
+ *               Communication
+ * ************************************************/
+
 #define BaudRateNano            115200
+#define BaudRateMaster          9600
+#define MaxCharactersFloat      8
 
 #define PeriodUsController      40          // 25 kHz
 
