@@ -1,84 +1,78 @@
-#include "BufferedSerial.h"
-#include "PinNameAliases.h"
-#include "PinNames.h"
 #include "mbed.h"
-#include <cstdint>
+#include "Leg.h"
+#include "LinearActuator.h"
+#include "MuxCommunication.h"
+#include "MasterCommunication.h"
+#include "PinOut.h"
+#include "GlobalConfig.h"
 
-BufferedSerial pc(USBTX, NC, 115200); // tx, rx
-BufferedSerial nanoSerial(NC, D2, 115200); // tx, rx
+/* ************************************************
+ *               Config Flag Thread
+ * ************************************************/
 
-char buffer[500];
+Thread communication_master;    // Communication avec le controller
+Thread communication_nano;      // Communication avec les Nano
+Thread control_linearActurator; // Contrôle des vérins
 
-struct nanoValue{
-  uint32_t value:10;
-  uint32_t actuatorId:2;
-  uint32_t legId:3;
-  uint32_t padding:1;
-  uint32_t check:8;
-  uint32_t header:8;
-};
+EventFlags emergency;   // timout pour la reception de donnée des Nano
 
-const unsigned char CRC7_POLY = 0x91;
+BufferedSerial serialMaster(USBTX, USBRX, BaudRateMaster);
+//DigitalOut led(LED1);
+/* ************************************************
+ *                  Object
+ * ************************************************/
 
-void update_crc(unsigned char &crc){
-    for (int j = 0; j < 8; j++)
-    {
-      if (crc & 1)
-        crc ^= CRC7_POLY;
-      crc >>= 1;
+LinearActuator baseLegA(baseLeg, pin_LegA_baseLeg_PWM, pin_LegA_baseLeg_DIR1, pin_LegA_baseLeg_DIR2,
+                        LegA_baseLeg_Pos_Min,
+                        LegA_baseLeg_Pos_Max, &emergency);
+
+LinearActuator middleLegA(middleLeg, pin_LegA_middleLeg_PWM, pin_LegA_middleLeg_DIR1, pin_LegA_middleLeg_DIR2,
+                          LegA_middleLeg_Pos_Min, LegA_middleLeg_Pos_Max, &emergency);
+
+LinearActuator endLegA(endLeg, pin_LegA_endLeg_PWM, pin_LegA_endLeg_DIR1, pin_LegA_endLeg_DIR2, LegA_endLeg_Pos_Min,
+                       LegA_endLeg_Pos_Max, &emergency);
+
+LinearActuator baseLegB(baseLeg, pin_LegB_baseLeg_PWM, pin_LegB_baseLeg_DIR1, pin_LegB_baseLeg_DIR2,
+                        LegB_baseLeg_Pos_Min,
+                        LegB_baseLeg_Pos_Max, &emergency);
+
+LinearActuator middleLegB(middleLeg, pin_LegB_middleLeg_PWM, pin_LegB_middleLeg_DIR1, pin_LegB_middleLeg_DIR2,
+                          LegB_middleLeg_Pos_Min, LegB_middleLeg_Pos_Max, &emergency);
+
+LinearActuator endLegB(endLeg, pin_LegB_endLeg_PWM, pin_LegB_endLeg_DIR1, pin_LegB_endLeg_DIR2, LegB_endLeg_Pos_Min,
+                       LegB_endLeg_Pos_Max, &emergency);
+
+//TODO Ici on met à jour l'id de la Leg
+Leg legA(leg1, &baseLegA, &middleLegA, &endLegA);
+Leg legB(leg2, &baseLegB, &middleLegB, &endLegB);
+
+
+MasterCommunication masterCom(&serialMaster, &emergency, &legA, &legB);
+MuxCommunication muxCom(pin_Mux_PinOut_A, pin_Mux_PinOut_B, pin_Mux_PinOut_TX_LEGA, pin_Mux_PinOut_TX_LEGB, &emergency, &legA, &legB);
+
+
+/* ************************************************
+ *          Config Flag Thread fonctions
+ * ************************************************/
+
+/**
+ * @brief Fonction s'apparentant à un main pour le contrôle des vérins
+ *
+ * Prise en compte du flag emergency
+ */
+void Main_Thread_LinearActuator(){
+//TODO Flag emergency à mettre en place
+    while (true){
+
     }
 }
- 
-unsigned char get_crc(unsigned char v1, unsigned char v2)
-{
-  unsigned char  crc = 0; 
-  crc ^= v1;
-  update_crc(crc);  
-  crc ^= v2;
-  update_crc(crc);  
-  return crc;
-}
 
+int main(){
+    communication_master.start(masterCom.main());
+    communication_nano.start(muxCom.main());
+    control_linearActurator.start(Main_Thread_LinearActuator);
 
-bool check_nano(uint32_t value, int &legId, int &laId, int &outvalue){
-  struct nanoValue *v=(struct nanoValue *)&value;
-  if (v->header==0x55){
-    if (v->check == get_crc(value&0xFF,(value>>8)&0xFF)){
-      legId=v->legId;
-      laId=v->actuatorId;
-      outvalue=v->value;
-      return true;
+    while (true) {
+
     }
-  }
-  return false;  
 }
-
-// main() runs in its own thread in the OS
-int main() {
-  uint32_t v;
-  unsigned char c;
-
-  
-  while (true) {
-    if (nanoSerial.readable()) {
-      nanoSerial.read(&c, sizeof(c));
-      
-      v=(v>>8) | (c<<24);
-      
-      //      int l = snprintf(buffer, 500, "read data %x => %x\n", c , v );
-      //pc.write(buffer, l);
-      int leg,la,value;
-      if (check_nano(v,leg,la,value)){
-	int l = snprintf(buffer, 500, "new value: %d %d  => %d\n", leg , la,value );
-	pc.write(buffer, l);
-      }
-
-    }  
-    //ThisThread::sleep_for(100ms);
-  }
-  return 0;
-}
-
-
-
-
