@@ -1,10 +1,25 @@
 #include "mbed.h"
+<<<<<<< Updated upstream
 #include "Leg.h"
 #include "LinearActuator.h"
 #include "MuxCommunication.h"
 #include "MasterCommunication.h"
 #include "PinOut.h"
 #include "GlobalConfig.h"
+=======
+
+/* ************************************************
+ *               Config Flag Thread
+ * ************************************************/
+
+Thread communication_controller;     // Communication avec le controller
+Thread communication_linearActuator; // Communication avec les Nano
+
+EventFlags emergency;   // timout pour la reception de donnée des Nano
+
+
+DigitalOut led (LED1);
+>>>>>>> Stashed changes
 
 
 /* ************************************************

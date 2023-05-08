@@ -3,14 +3,19 @@
 
 #include "LinearActuator.h"
 
+<<<<<<< Updated upstream
 
 enum LegId_t {
+=======
+enum Leg_t {
+>>>>>>> Stashed changes
     leg1 = 1,
     leg2 = 2,
     leg3 = 3,
     leg4 = 4
 };
 
+<<<<<<< Updated upstream
 
 class Leg {
     //TODO Documentation classe
@@ -37,4 +42,16 @@ private:
 
 
 
+=======
+class Leg {
+public:
+    Leg(Leg_t id_leg, LinearActuator *base_leg, LinearActuator *middle_leg, LinearActuator *end_leg);
+    LinearActuator *linear_actuator_baseLeg;
+    LinearActuator *linear_actuator_middleLeg;
+    LinearActuator *linear_actuator_endLeg;
+
+};
+
+
+>>>>>>> Stashed changes
 #endif //MEGABOT_DRIVER_LEG_H
