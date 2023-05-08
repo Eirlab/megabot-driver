@@ -18,9 +18,9 @@ public:
      * @param channelB  : PinName       : pour le channel A du multiplexeur
      * @param TXLeg1    : PinName       : correspondant au TX de la Leg1 sélectionné par AB
      * @param TXLeg2    : PinName       : correspondant au TX de la Leg2 sélectionné par AB
-     * @param emergency : EventFlags    : pointeur vers le Flag d'arrêt d'urgence
+     * @param mainFlags : EventFlags    : pointeur vers le Flag d'arrêt d'urgence
      */
-    MuxCommunication(PinName channelA, PinName channelB, PinName TXLegA, PinName TXLegB, EventFlags *emergency,
+    MuxCommunication(PinName channelA, PinName channelB, PinName TX_legA, PinName TX_legB, EventFlags *mainFlags,
                      Leg *leg_A, Leg *leg_B);
 
     /**
@@ -44,10 +44,10 @@ private:
     Leg *legB;
 
     uint8_t wordAB;
-    LinearActuatorLeg_t linearActuatorSelected;
-    Leg_t legSelected;
+    LinearActuatorId_t linearActuatorSelected;
+    LegId_t legSelected;
 
-    EventFlags *emergencyFlag;
+    EventFlags *flag;
 
 
 // Communication tools

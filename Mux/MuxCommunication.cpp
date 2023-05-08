@@ -2,7 +2,7 @@
 #include "MasterCommunication.h"
 
 MuxCommunication::MuxCommunication(PinName channelA, PinName channelB, PinName TX_legA, PinName TX_legB,
-                                   EventFlags *emergency,
+                                   EventFlags *mainFlags,
                                    Leg *leg_A, Leg *leg_B) {
     A = new DigitalOut(channelA);
     B = new DigitalOut(channelB);
@@ -12,8 +12,8 @@ MuxCommunication::MuxCommunication(PinName channelA, PinName channelB, PinName T
     legA = leg_A;
     legB = leg_B;
 
-    emergencyFlag = emergency;
-//    timeoutFlag = new EventFlags ();
+    flag = mainFlags;
+
 
 
     linearActuatorSelected = baseLeg;
@@ -28,7 +28,7 @@ MuxCommunication::MuxCommunication(PinName channelA, PinName channelB, PinName T
 
 void MuxCommunication::threadWorker() {
     if (TXLegA->readable() && TXLegB->readable()) {
-        emergencyFlag->set(event_TimeOut_Tx);
+        flag->set(event_TimeOut_Tx);
 
         uint16_t mesureInt;
 
@@ -93,7 +93,7 @@ bool MuxCommunication::check_nano(uint32_t value, uint16_t &mesureInt) {
                     break;
                 default:
                     return false;
-            };
+            }
             // Vérification de la LinearActuator
             switch (v->actuatorId) {
                 case 1:

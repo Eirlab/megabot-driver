@@ -4,7 +4,7 @@
 #include "mbed.h"
 #include "GlobalConfig.h"
 
-enum LinearActuatorLeg_t{
+enum LinearActuatorId_t{
     baseLeg     = 1,
     middleLeg   = 2,
     endLeg      = 3
@@ -12,40 +12,46 @@ enum LinearActuatorLeg_t{
 
 class LinearActuator {
     //TODO Documentation
-public:
-    LinearActuator(LinearActuatorLeg_t linear_actuator_position_leg, PinName PWM, PinName DIR1, PinName DIR2,
-                   uint16_t position_int_min, uint16_t position_int_max, EventFlags *emergency_flag);
-    ~LinearActuator();
-
-    float getPosition();
-    bool setPosition(float target);
-
-    uint16_t positionInt; // lecture de la position du vérin par rapport à communication sur la Nano
-
 private:
-    LinearActuatorLeg_t IdLinearActuator;
-    PwmOut* pwm;
-    DigitalOut* dir1;
-    DigitalOut* dir2;
-    EventFlags* emergencyFlag;
-
-    float positionMm;
-    uint16_t trigMin;
-    uint16_t trigMax;
-
-    float target, error;
     enum sens_t{
         none = 0,
         forward = 1,
         backward = -1
     };
     sens_t sens;
+public:
+    LinearActuator(LinearActuatorId_t linear_actuator_position_leg, PinName PWM, PinName DIR1, PinName DIR2,
+                   uint16_t position_int_min, uint16_t position_int_max, EventFlags *main_flag);
+    ~LinearActuator();
+
+    float getPositionMm();
+    bool setPositionMm(float target);
+
+    uint16_t positionInt; // lecture de la position du vérin par rapport à communication sur la Nano
+    void setPositionInt(uint16_t mesure_int);
 
     /**
      * Configure les pins DIR1 et DIR2 pour que le sens soit correct
      * @param sensTarget : sens_t
      */
     void setSens(sens_t sensTarget);
+private:
+    LinearActuatorId_t IdLinearActuator;
+    PwmOut* pwm;
+    DigitalOut* dir1;
+    DigitalOut* dir2;
+
+    EventFlags* flag;
+
+    float positionMm;
+    float resolution; // à ne pas modifier
+    uint16_t trigMin;
+    uint16_t trigMax;
+
+    float target, error;
+
+
+
 
     /**
      * Applique le bon rapport à la PWM en prenant en compte la rampe de démarrage
@@ -54,7 +60,6 @@ private:
     void setPwm(float intensity);
     Timer timeRampe;
 };
-
 
 
 #endif //MEGABOT_DRIVER_LINEARACTUATOR_H

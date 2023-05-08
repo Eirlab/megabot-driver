@@ -155,7 +155,7 @@ Se construit avec :
 * pins channelA, channelB, TXLegA, TXLegB
 * 2 référence vers _Leg_
 
-Gestion de la réception des positions des vérins et de la situation d'*emergency* (si nous ne recevons plus d'information).
+Gestion de la réception des positions des vérins et de la situation d'*Flags* (si nous ne recevons plus d'information).
 
 ## MasterCommunication
 Cette classe sert d'interface avec le PC central.  

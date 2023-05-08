@@ -1,6 +1,6 @@
 #include "Leg.h"
 
-Leg::Leg(Leg_t leg_id, LinearActuator *base_leg, LinearActuator *middle_leg, LinearActuator *end_leg) {
+Leg::Leg(LegId_t leg_id, LinearActuator *base_leg, LinearActuator *middle_leg, LinearActuator *end_leg) {
     legId = leg_id;
 
     linear_actuator_baseLeg = base_leg;
@@ -8,7 +8,7 @@ Leg::Leg(Leg_t leg_id, LinearActuator *base_leg, LinearActuator *middle_leg, Lin
     linear_actuator_endLeg = end_leg;
 }
 
-void Leg::updateValuePositionInt(LinearActuatorLeg_t linear_actuator_select, uint16_t mesureInt) const {
+void Leg::updateValuePositionInt(LinearActuatorId_t linear_actuator_select, uint16_t mesureInt) const {
     switch (linear_actuator_select) {
         case baseLeg:
             linear_actuator_baseLeg->positionInt = mesureInt;
@@ -22,6 +22,6 @@ void Leg::updateValuePositionInt(LinearActuatorLeg_t linear_actuator_select, uin
     }
 }
 
-Leg_t Leg::getId() const {
+LegId_t Leg::getId() const {
     return legId;
 }

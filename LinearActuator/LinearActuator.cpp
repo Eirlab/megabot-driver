@@ -1,8 +1,8 @@
 #include "LinearActuator.h"
 
-LinearActuator::LinearActuator(LinearActuatorLeg_t linear_actuator_position_leg, PinName PWM, PinName DIR1, PinName DIR2,
+LinearActuator::LinearActuator(LinearActuatorId_t linear_actuator_position_leg, PinName PWM, PinName DIR1, PinName DIR2,
                                uint16_t position_int_min,
-                               uint16_t position_int_max, EventFlags *emergency_flag) {
+                               uint16_t position_int_max, EventFlags *main_flag) {
     IdLinearActuator = linear_actuator_position_leg;
 
     pwm = new PwmOut(PWM);
@@ -11,7 +11,7 @@ LinearActuator::LinearActuator(LinearActuatorLeg_t linear_actuator_position_leg,
     dir1 = new DigitalOut(DIR1);
     dir2 = new DigitalOut(DIR2);
 
-    emergencyFlag = emergency_flag;
+    flag = main_flag;
 
     sens = none;
 
@@ -20,7 +20,8 @@ LinearActuator::LinearActuator(LinearActuatorLeg_t linear_actuator_position_leg,
     trigMax = position_int_max;
     trigMin = position_int_min;
     positionInt = (int) ((trigMax - trigMin) / 2);
-    positionMm = (float) (RangeLinearActuator) / ((float) (trigMax - trigMin));
+    resolution = (float) (RangeLinearActuator) / ((float) (trigMax - trigMin));
+    positionMm = resolution * float(positionInt-trigMin);
 
     target = positionMm;
     error = 0.;
@@ -34,7 +35,7 @@ LinearActuator::~LinearActuator() {
 }
 
 
-float LinearActuator::getPosition() {
+float LinearActuator::getPositionMm() {
     positionMm = (float) (RangeLinearActuator) / ((float) (trigMax - trigMin));
     if (positionMm < 0. || positionMm > RangeLinearActuator) {
         return -1; // DANGER
@@ -44,7 +45,7 @@ float LinearActuator::getPosition() {
     }
 }
 
-bool LinearActuator::setPosition(float target_position) {
+bool LinearActuator::setPositionMm(float target_position) {
     //TODO rampe au démarrage et arrêt d'urgence
     target = target_position;
     error = positionMm - target_position;
@@ -68,12 +69,12 @@ void LinearActuator::setSens(LinearActuator::sens_t sensTarget) {
     switch (sensTarget) {
         //FIXME sens de la commande
         case forward:
-//            dir1->write();
-//            dir2->write();
+            dir1->write(1);
+            dir2->write(0);
             break;
         case backward:
-//            dir1->write();
-//            dir2->write();
+            dir1->write(0);
+            dir2->write(1);
             break;
         case none:
             dir1->write(0);
@@ -83,7 +84,22 @@ void LinearActuator::setSens(LinearActuator::sens_t sensTarget) {
 }
 
 void LinearActuator::setPwm(float intensity) {
-    pwm->write(intensity);
+    float cmd;
+    if (intensity > 1){
+        cmd = 1;
+    }
+    else if (intensity < 0) {
+        cmd = 0;
+    }
+    else {
+        cmd = intensity;
+    }
+    pwm->write(cmd);
+}
+
+void LinearActuator::setPositionInt(uint16_t mesure_int) {
+    positionInt = mesure_int;
+    positionMm = resolution * (positionInt-trigMin);
 }
 
 
