@@ -1,5 +1,6 @@
 #ifndef MEGABOT_DRIVER_GLOBALCONFIG_H
 #define MEGABOT_DRIVER_GLOBALCONFIG_H
+#include "mbed.h"
 
 /* ************************************************
  *          Configuration Nécessaire
@@ -49,9 +50,6 @@
 #define Flag_LegB_3             (1 << 0x6)
 #define Flag_LegA               (Flag_LegA_1) | (Flag_LegA_2) | (Flag_LegA_3)
 #define Flag_LegB               (Flag_LegB_1) | (Flag_LegB_2) | (Flag_LegB_3)
-
-
-
 
 
 #endif //MEGABOT_DRIVER_GLOBALCONFIG_H
