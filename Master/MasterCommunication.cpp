@@ -1,6 +1,5 @@
 #include "MasterCommunication.h"
 
-
 /* ************************************************
  *                    Constructor
  * ************************************************/
@@ -148,7 +147,7 @@ void MasterCommunication::sendMesure(LegId_t leg_selected, LinearActuatorId_t li
  * ************************************************/
 
 bool MasterCommunication::securityTarget(float targetDesired) {
-    if (cmdFloat < )
+    // if (cmdFloat < )
     return false;
 }
 
@@ -162,5 +161,3 @@ void MasterCommunication::sendCheck(bool commandCheck) {
         serial->write(buffer, strlen(buffer));
     }
 }
-
-
