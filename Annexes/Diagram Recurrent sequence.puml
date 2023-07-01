@@ -1,0 +1,24 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+participant communication_master            as com
+participant control_linearActuator          as LA
+participant communication_linearActuator    as nanoRX
+actor       Nanos                           as nanos
+
+
+com -> com : Wait command
+
+LA -> LA : Check emergencyFlag
+
+nanos -> nanoRX : Send position of LinearActuator
+
+note left
+Dès qu'une information arrive
+elle est mise à jour dans le LinearActuator
+end note
+activate nanoRX
+nanoRX -> nanoRX : Commute Mux for receive different position of LinearActuator
+nanoRX -> nanoRX : Read position of LinearActuator
+nanoRX -> LA : Update position of LinearActuator
+
+@enduml
