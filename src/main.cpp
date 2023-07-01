@@ -1,33 +1,18 @@
 #include "mbed.h"
-<<<<<<< Updated upstream
 #include "Leg.h"
 #include "LinearActuator.h"
 #include "MuxCommunication.h"
 #include "MasterCommunication.h"
 #include "PinOut.h"
 #include "GlobalConfig.h"
-=======
-
-/* ************************************************
- *               Config Flag Thread
- * ************************************************/
-
-Thread communication_controller;     // Communication avec le controller
-Thread communication_linearActuator; // Communication avec les Nano
-
-EventFlags emergency;   // timout pour la reception de donnée des Nano
-
-
-DigitalOut led (LED1);
->>>>>>> Stashed changes
 
 
 /* ************************************************
- *                  Object
+ *                  Objects
  * ************************************************/
 EventFlags Flags;
 BufferedSerial serialMaster(USBTX, USBRX, BaudRateMaster);
-DigitalOut led(LED1);
+
 LinearActuator baseLegA(baseLeg, pin_LegA_baseLeg_PWM, pin_LegA_baseLeg_DIR1, pin_LegA_baseLeg_DIR2,
                         LegA_baseLeg_Pos_Min,
                         LegA_baseLeg_Pos_Max, &Flags);
@@ -48,12 +33,12 @@ LinearActuator middleLegB(middleLeg, pin_LegB_middleLeg_PWM, pin_LegB_middleLeg_
 LinearActuator endLegB(endLeg, pin_LegB_endLeg_PWM, pin_LegB_endLeg_DIR1, pin_LegB_endLeg_DIR2, LegB_endLeg_Pos_Min,
                        LegB_endLeg_Pos_Max, &Flags);
 
-//TODO Ici on met à jour l'id de la Leg et on va vérifier dans GlobalConfig que les flags soient bien configurés
+//TODO: Ici on met à jour l'id de la Leg et on va vérifier dans GlobalConfig que les flags soient bien configurés
 Leg legA(leg1, &baseLegA, &middleLegA, &endLegA);
 Leg legB(leg2, &baseLegB, &middleLegB, &endLegB);
 
 
-MasterCommunication masterCom(&serialMaster, &Flags, &legA, &legB);
+// MasterCommunication masterCom(&serialMaster, &Flags, &legA, &legB);
 MuxCommunication muxCom(pin_Mux_PinOut_A, pin_Mux_PinOut_B, pin_Mux_PinOut_TX_LEGA, pin_Mux_PinOut_TX_LEGB, &Flags,
                         &legA, &legB);
 
@@ -61,14 +46,26 @@ MuxCommunication muxCom(pin_Mux_PinOut_A, pin_Mux_PinOut_B, pin_Mux_PinOut_TX_LE
 /* ************************************************
  *         MAIN - LinearActuator thread
  * ************************************************/
-void tickerWorker(){
+// void tickerWorker(){
 
-}
+// }
 int main() {
-
+    char buffer[255];
+    
+    muxCom.run();
     while (true) {
-        Flags.wait_any(1 << FlagRunCmd);
-        serialMaster.write("test\n", 6);
-        led = 1;
+        int mesAbase = legA.linear_actuator_baseLeg->positionInt;
+        int mesAmiddle = legA.linear_actuator_middleLeg->positionInt;
+        int mesAend = legA.linear_actuator_endLeg->positionInt;
+        int mesBbase = legB.linear_actuator_baseLeg->positionInt;
+        int mesBmiddle = legB.linear_actuator_middleLeg->positionInt;
+        int mesBend = legB.linear_actuator_endLeg->positionInt;
+        
+        uint8_t len = sprintf(buffer, "> LegA : %d %d %d \n> LegB : %d %d %d \n\n",
+        mesAbase, mesAmiddle, mesAend,
+        mesBbase, mesBmiddle, mesBend );
+        serialMaster.write(buffer, len);
+
+        ThisThread::sleep_for(1s);
     }
 }
