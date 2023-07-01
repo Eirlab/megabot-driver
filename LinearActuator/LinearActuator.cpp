@@ -1,6 +1,5 @@
 #include "LinearActuator.h"
 
-<<<<<<< Updated upstream
 LinearActuator::LinearActuator(LinearActuatorId_t linear_actuator_position_leg, PinName PWM, PinName DIR1, PinName DIR2,
                                uint16_t position_int_min,
                                uint16_t position_int_max, EventFlags *main_flag) {
@@ -20,9 +19,9 @@ LinearActuator::LinearActuator(LinearActuatorId_t linear_actuator_position_leg, 
 
     trigMax = position_int_max;
     trigMin = position_int_min;
-    positionInt = (int) ((trigMax - trigMin) / 2);
+    positionInt = -1;
     resolution = (float) (RangeLinearActuator) / ((float) (trigMax - trigMin));
-    positionMm = resolution * float(positionInt-trigMin);
+    positionMm = -1;
 
     target = positionMm;
     error = 0.;
@@ -34,7 +33,6 @@ LinearActuator::~LinearActuator() {
     delete dir1;
     delete dir2;
 }
-
 
 float LinearActuator::getPositionMm() {
     positionMm = (float) (RangeLinearActuator) / ((float) (trigMax - trigMin));
@@ -102,11 +100,4 @@ void LinearActuator::setPositionInt(uint16_t mesure_int) {
     positionInt = mesure_int;
     positionMm = resolution * (positionInt-trigMin);
 }
-=======
-LinearActuator::LinearActuator(LinearActuatorLeg_t id, PinName PWM, PinName DIR1, PinName DIR2) {
-
-}
-
-LinearActuator::~LinearActuator() = default;
->>>>>>> Stashed changes
 

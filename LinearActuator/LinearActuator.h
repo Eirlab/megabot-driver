@@ -4,18 +4,13 @@
 #include "mbed.h"
 #include "GlobalConfig.h"
 
-<<<<<<< Updated upstream
 enum LinearActuatorId_t{
-=======
-enum LinearActuatorLeg_t{
->>>>>>> Stashed changes
     baseLeg     = 1,
     middleLeg   = 2,
     endLeg      = 3
 };
 
 class LinearActuator {
-<<<<<<< Updated upstream
     //TODO Documentation
 private:
     enum sens_t{
@@ -27,15 +22,12 @@ private:
 public:
     LinearActuator(LinearActuatorId_t linear_actuator_position_leg, PinName PWM, PinName DIR1, PinName DIR2,
                    uint16_t position_int_min, uint16_t position_int_max, EventFlags *main_flag);
-=======
-    LinearActuator(LinearActuatorLeg_t id, PinName PWM, PinName DIR1, PinName DIR2);
->>>>>>> Stashed changes
     ~LinearActuator();
 
     float getPositionMm();
     bool setPositionMm(float target);
 
-    uint16_t positionInt; // lecture de la position du vérin par rapport à communication sur la Nano
+    int16_t positionInt; // lecture de la position du vérin par rapport à communication sur la Nano
     void setPositionInt(uint16_t mesure_int);
 
     /**
