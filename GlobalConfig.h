@@ -6,8 +6,12 @@
  *          Configuration Nécessaire
  * ************************************************/
 // TODO à configurer
-
-#define BaudRateNano            115200
+//#define CONTROLER12
+#ifdef CONTROLER12
+#define BaudRateNano            230400
+#else
+#define BaudRateNano            115200 //pour les legs 1&2: 230400
+#endif
 #define BaudRateMaster          115200
 #define MaxCharactersFloat      8           // caractères maximums reçu sans délimiteur final (venant du master) avant de retourner une erreur)
 

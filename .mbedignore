@@ -15,6 +15,7 @@ mbed-os/drivers/device_key/*
 
 /* Experimental /
 mbed-os/platform/FEATURE_EXPERIMENTAL_API/*
+mbed-os/platform/randlib/*
 
 /* FPGA */
 mbed-os/features/frameworks/COMPONENT_FPGA_CI_TEST_SHIELD/*

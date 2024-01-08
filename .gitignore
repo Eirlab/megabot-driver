@@ -65,3 +65,6 @@ Module.symvers
 Mkfile.old
 dkms.conf
 .vscode/
+BUILD
+.mbed
+SoftSerial

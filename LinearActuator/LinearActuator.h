@@ -1,65 +1,73 @@
 #ifndef MEGABOT_DRIVER_LINEARACTUATOR_H
 #define MEGABOT_DRIVER_LINEARACTUATOR_H
 
-#include "mbed.h"
 #include "GlobalConfig.h"
+#include "mbed.h"
 
-enum LinearActuatorId_t{
-    baseLeg     = 1,
-    middleLeg   = 2,
-    endLeg      = 3
+struct ControlerAB{
+    PinName DIR1;
+    PinName DIR2;
+    PinName PWM;
+    ControlerAB(PinName DIR1,PinName DIR2,PinName PWM):DIR1(DIR1),DIR2(DIR2),PWM(PWM){}
 };
+
 
 class LinearActuator {
-    //TODO Documentation
-private:
-    enum sens_t{
-        none = 0,
-        forward = 1,
-        backward = -1
-    };
-    sens_t sens;
 public:
-    LinearActuator(LinearActuatorId_t linear_actuator_position_leg, PinName PWM, PinName DIR1, PinName DIR2,
-                   uint16_t position_int_min, uint16_t position_int_max, EventFlags *main_flag);
-    ~LinearActuator();
+  LinearActuator(int leg, int actuator, ControlerAB pins,
+                 int pos_min, int pos_max, double freq);
 
-    float getPositionMm();
-    bool setPositionMm(float target);
+  ~LinearActuator();
 
-    int16_t positionInt; // lecture de la position du vérin par rapport à communication sur la Nano
-    void setPositionInt(uint16_t mesure_int);
+  double getPosition();
+  double getTargetPosition();
+  double getTargetPwm();
+  double getCurrentPwm();
 
-    /**
-     * Configure les pins DIR1 et DIR2 pour que le sens soit correct
-     * @param sensTarget : sens_t
-     */
-    void setSens(sens_t sensTarget);
+  void setPositionNano(uint16_t mesure_int);
+  
+  void stop();
+
+  void moveTo(double position, double power);
+
+  void tick();
+
+  int leg, actuator;
+
 private:
-    LinearActuatorId_t IdLinearActuator;
-    PwmOut* pwm;
-    DigitalOut* dir1;
-    DigitalOut* dir2;
+  Mutex mutex;
+  // id
+  // position
+  int posMinNano, posMaxNano, posNano;
+  double position;
+  double actuatorLength;
+  // target
+  double targetPosition;
+  double pidIValue;
+  double pidIMax;
+  double pidDValue;
+  double Kp,Ki,Kd;
+  // pwm
+  double targetPwm;
+  double currentPwm;
+  double slopePwm;
+  double maxPwm;
+  // safe area:
+  double safeArea;
+  double safePwm;
+  // emergy:
+  double emergencyStopArea;
+  double lostPositionAfter;
 
-    EventFlags* flag;
+  int dbg_cpt = 0;
 
-    float positionMm;
-    float resolution; // à ne pas modifier
-    uint16_t trigMin;
-    uint16_t trigMax;
-
-    float target, error;
-
-
-
-
-    /**
-     * Applique le bon rapport à la PWM en prenant en compte la rampe de démarrage
-     * @param intensity : (float)
-     */
-    void setPwm(float intensity);
-    Timer timeRampe;
+  rtos::Kernel::Clock::time_point lastNanoRead;
+  rtos::Kernel::Clock::time_point lastTick;
+  double minTickDt;
+  void set(int dir1, int dir2, double pwm);
+  PwmOut *pwm;
+  DigitalOut *dir1;
+  DigitalOut *dir2;
 };
 
-
-#endif //MEGABOT_DRIVER_LINEARACTUATOR_H
+#endif // MEGABOT_DRIVER_LINEARACTUATOR_H

@@ -1,158 +1,155 @@
 #include "MuxCommunication.h"
+#include "BufferedSerial.h"
+#include "Kernel.h"
+#include "PinNames.h"
+#include "PinOut.h"
+#include "Thread.h"
 
 DigitalOut led(LED1);
 
-MuxCommunication::MuxCommunication(PinName channelA, PinName channelB, PinName TX_legA, PinName TX_legB,
-                                   EventFlags *mainFlags,
-                                   Leg *leg_A, Leg *leg_B)
-{
-    A = new DigitalOut(channelA);
-    B = new DigitalOut(channelB);
-    TXLegA = new BufferedSerial(NC, TX_legA, BaudRateNano);
-    TXLegB = new BufferedSerial(NC, TX_legB, BaudRateNano);
+void print(const char *msg, ...);
 
-    legA = leg_A;
-    legB = leg_B;
+MuxCommunication::MuxCommunication(EventFlags *mainFlags, MuxComCallback *cb) {
+  MuxA = new DigitalOut(pin_Mux_A);
+  MuxB = new DigitalOut(pin_Mux_B);
+  MuxC = new DigitalOut(pin_Mux_C);
 
-    flag = mainFlags;
+  print("Baud rate Nano is %d\n", BaudRateNano);
+ 
+  RXChannelMux = new BufferedSerial(NC, pin_Mux_Nano_RX, BaudRateNano);
+  PinName p[] = {pin_Nano_Rx}; //! pin_Nano_Rx is a list of pin with direct connexion to nano and serial support
+  for (int i = 0; i < sizeof(p) / sizeof(p[0]); ++i) {
+    RXChannels.push_back(new BufferedSerial(NC, p[i], BaudRateNano));
+  }
+  this->cb = cb;
 
-    linearActuatorSelected = baseLeg;
-    legSelected = legA->getId();
-    vA = 0;
-    cA = 0;
-    vB = 0;
-    cB = 0;
-    wordAB = 0;
+  flag = mainFlags;
 }
 
-void MuxCommunication::run(){
-    MuxThread.start(callback(this, &MuxCommunication::threadWorker));
+void MuxCommunication::run() {
+  Thread *t = new Thread();
+  t->start(callback(this, &MuxCommunication::threadWorkerMux));
+  threads.push_back(t);
+  t = new Thread();
+  t->start(callback(this, &MuxCommunication::threadWorkerRx0));
+  threads.push_back(t);
+  t = new Thread();
+  t->start(callback(this, &MuxCommunication::threadWorkerRx1));
+  threads.push_back(t);
+  t = new Thread();
+  t->start(callback(this, &MuxCommunication::threadWorkerRx2));
+  threads.push_back(t);
 }
 
-void MuxCommunication::threadWorker()
-{
-    led = 1;
-    while (1)
-    {
-        if (TXLegA->readable() && TXLegB->readable())
-        {
-            flag->set(1 << 7);
-
-            uint16_t mesureInt;
-
-            // Read TXLegA
-            TXLegA->read(&cA, sizeof(cA));
-            vA = (vA >> 8) | (cA << 24);
-            if (check_nano(vA, mesureInt))
-            {
-                legA->updateValuePositionInt(linearActuatorSelected, mesureInt);
-            }
-
-            // Read TXLegB
-            TXLegB->read(&cB, sizeof(cB));
-            vB = (vB >> 8) | (cB << 24);
-            if (check_nano(vB, mesureInt))
-            {
-                legB->updateValuePositionInt(linearActuatorSelected, mesureInt);
-            }
-
-            switch (wordAB)
-            {
-            case 0:
-                A->write(0);
-                B->write(1);
-                linearActuatorSelected = middleLeg;
-                break;
-            case 1:
-                A->write(1);
-                B->write(0);
-                linearActuatorSelected = endLeg;
-                break;
-            case 2:
-                A->write(0);
-                B->write(0);
-                linearActuatorSelected = baseLeg;
-                break;
-            default:
-                A->write(0);
-                B->write(0);
-            }
-
-            wordAB = A->read() << 1 | B->read();
+void MuxCommunication::threadWorkerRx(int i) {
+  int linearActuatorSelected;
+  int legSelected;
+  uint16_t mesureInt;
+  uint32_t v = 0;
+  unsigned char c = 0;
+  auto dt = Kernel::Clock::now();
+  unsigned char rbuf[100];
+  if (i < 0 || (i >= RXChannels.size()))
+    return;
+  BufferedSerial *rxChannel = RXChannels[i];
+  if (rxChannel==nullptr) return;
+  while (1) {
+    if (rxChannel->readable()) {
+      int r = rxChannel->read(rbuf, 100);
+      for (int l = 0; l < r; ++l) {
+        c = rbuf[l];
+        v = (v >> 8) | (c << 24);
+        if (c == 0x9b) {
+          if (check_nano(v, legSelected, linearActuatorSelected, mesureInt)) {
+            if (cb != nullptr)
+              cb->value(legSelected, linearActuatorSelected, mesureInt);
+            //rxChannel->sync();
+          } else {
+            // print("read on chan B check wrong ! %x => %x\n", cB, vB);
+          }
         }
+      }
     }
+    ThisThread::yield();
+  }
 }
 
-bool MuxCommunication::check_nano(uint32_t value, uint16_t &mesureInt)
-{
-    struct nanoValue *v = (struct nanoValue *)&value;
-    if (v->header == 0x55)
-    {
-        if (v->check == get_crc(value & 0xFF, (value >> 8) & 0xFF))
-        {
-            // Vérification de la Leg
-            switch (v->legId)
-            {
-            case 1:
-                legSelected = leg1;
-                break;
-            case 2:
-                legSelected = leg2;
-                break;
-            case 3:
-                legSelected = leg3;
-                break;
-            case 4:
-                legSelected = leg4;
-                break;
-            default:
-                return false;
-            }
-            // Vérification de la LinearActuator
-            switch (v->actuatorId)
-            {
-            case 1:
-                linearActuatorSelected = baseLeg;
-                break;
-            case 2:
-                linearActuatorSelected = middleLeg;
-                break;
-            case 3:
-                linearActuatorSelected = endLeg;
-                break;
-            default:
-                return false;
-            };
-            if (v->value > 1023 || v->value < 0)
-            {
-                return false;
-            }
-            else
-            {
-                mesureInt = v->value;
-            }
-            return true;
+void MuxCommunication::threadWorkerMux() {
+  int linearActuatorSelected;
+  int legSelected;
+  uint16_t mesureInt;
+  uint32_t vA = 0;
+  unsigned char cA = 0;
+  auto dt = Kernel::Clock::now();
+  bool readA = false; // readB = false;
+  uint8_t wordAB = 0;
+  failed = 0;
+  success = 0;
+  unsigned char rbuf[200];
+  int nNanos = 6 - RXChannels.size();
+  while (1) {
+    if (RXChannelMux->readable()) {
+      int r = RXChannelMux->read(rbuf, sizeof(rbuf));
+      for (int l = 0; l < sizeof(rbuf) && readA == false; ++l) {
+        cA = rbuf[l];
+        vA = (vA >> 8) | (cA << 24);
+        if (cA == 0x9b &&
+            check_nano(vA, legSelected, linearActuatorSelected, mesureInt)) {
+          readA = true;
+          if (cb != nullptr)
+            cb->value(legSelected, linearActuatorSelected, mesureInt);
+          // legs[legSelected]
         }
+      }
     }
-    return false;
+
+    if ((readA) || ((Kernel::Clock::now() - dt) > 1ms)) {
+      if (readA)
+        success += 1;
+      else
+        failed += 1;
+      wordAB = (wordAB + 1) % nNanos;
+      MuxA->write(wordAB & 0x1);
+      MuxB->write((wordAB >> 1) & 0x1);
+      MuxC->write((wordAB >> 2) & 0x1);
+      // print("switch chan %d (read: %d)\n",wordAB,readA);
+      RXChannelMux->sync();
+      readA = false;
+      vA = 0;
+      dt = Kernel::Clock::now();
+    }
+  }
 }
 
-void MuxCommunication::update_crc(unsigned char &crc)
-{
-    for (int j = 0; j < 8; j++)
-    {
-        if (crc & 1)
-            crc ^= CRC7_POLY;
-        crc >>= 1;
+bool MuxCommunication::check_nano(uint32_t value, int &legSelected,
+                                  int &linearActuatorSelected,
+                                  uint16_t &mesureInt) {
+  linearActuatorSelected = -1;
+  legSelected = -1;
+  struct nanoValue *v = (struct nanoValue *)&value;
+  if (v->header == 0x9b) {
+    if (v->check == get_crc(value & 0xFF, (value >> 8) & 0xFF)) {
+      // Vérification de la Leg
+      // debug("header and CRC ok %d %d %d\n", v->legId, v->actuatorId,
+      // v->value);
+      if ((v->legId >= 1) && (v->legId <= 4))
+        legSelected = v->legId;
+      else
+        return false;
+      if ((v->actuatorId >= 1) && (v->actuatorId <= 3))
+        linearActuatorSelected = v->actuatorId;
+      else
+        return false;
+      if (v->value > 1023 || v->value < 0) {
+        return false;
+      } else {
+        mesureInt = v->value;
+      }
+      return true;
+    } else {
+      // debug("CRC not ok %x %x %d %d %d\n", v->header, v->check, v->legId,
+      //      v->actuatorId, v->value);
     }
-}
-
-unsigned char MuxCommunication::get_crc(unsigned char v1, unsigned char v2)
-{
-    unsigned char crc = 0;
-    crc ^= v1;
-    update_crc(crc);
-    crc ^= v2;
-    update_crc(crc);
-    return crc;
+  }
+  return false;
 }
