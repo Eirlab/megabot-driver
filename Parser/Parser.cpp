@@ -248,8 +248,8 @@ struct Order {
 
 ParserBin::ParserBin(int capacity) : ParserBase(capacity) {}
 void ParserBin::process() {
-  // error("PS1 %d %d %d %d\n",p,e,(e - sizeof(Order)),p <= (e -
-  // sizeof(Order)));
+ // error("PS1 %d %d %d %d\n", p, e, (e - sizeof(Order)),
+  //      p <= (int)(e - sizeof(Order)));
   while (p <= (int)(e - sizeof(Order))) {
     // mean that buffer possibly contains an order
     if (buffer[p] == ORDER_HEADER) { // try to extract an order
@@ -272,12 +272,14 @@ void ParserBin::process() {
             this->p_cb(((float)o->value) / 10000.0);
         }
         p += sizeof(Order);
-      } else
+      } else{
+        //  error("CRC ERROR");
         p += 1;
-    }
+      }
+    } else p+=1;
   }
-  // error("PS2\n");
+  //error("PS2\n");
 
   flush_buffer();
-  // error("PS3\n");
+  //error("PS3\n");
 }

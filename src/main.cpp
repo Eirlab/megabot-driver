@@ -308,7 +308,7 @@ public:
   }
 };
 
-KMeanFilter kmeanFilter(5, &nanosToLinearActuators);
+KMeanFilter kmeanFilter(7, &nanosToLinearActuators);
 
 MuxCommunication muxCom(&Flags, &kmeanFilter);
 
