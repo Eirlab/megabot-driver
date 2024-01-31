@@ -5,8 +5,7 @@
 #include "PinNames.h"
 #include "mbed.h"
 #include <vector>
-
-const unsigned char CRC7_POLY = 0x91;
+#include "crc.h"
 
 class MuxComCallback {
 public:
@@ -67,23 +66,6 @@ private:
     uint32_t check : 8;
     uint32_t header : 8;
   };
-
-  static inline __attribute__((always_inline)) void update_crc(unsigned char &crc) {
-    for (int j = 0; j < 8; j++) {
-      if (crc & 1)
-        crc ^= CRC7_POLY;
-      crc >>= 1;
-    }
-  }
-
-  static inline  __attribute__((always_inline)) unsigned char get_crc(unsigned char v1, unsigned char v2) {
-    unsigned char crc = 0;
-    crc ^= v1;
-    update_crc(crc);
-    crc ^= v2;
-    update_crc(crc);
-    return crc;
-  }
 
   bool check_nano(uint32_t value, int &legSelected, int &linearActuatorSelected,
                   uint16_t &mesureInt);

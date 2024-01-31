@@ -3,8 +3,8 @@
 
 void debug(char *msg, ...);
 
-LinearActuator::LinearActuator(int leg, int actuator, ControlerAB pins, int pos_min, int pos_max,
-                               double freq)
+LinearActuator::LinearActuator(int leg, int actuator, ControlerAB pins,
+                               int pos_min, int pos_max, double freq)
     : leg(leg), actuator(actuator), posMinNano(pos_min), posMaxNano(pos_max),
       posNano(-1) {
   minTickDt = 1.0 / freq;
@@ -20,14 +20,10 @@ LinearActuator::LinearActuator(int leg, int actuator, ControlerAB pins, int pos_
   position = -1;
   actuatorLength = 0.2;
   targetPosition = -1; // i.e. not set
-  pidIValue = 0.0;
-  pidIMax = 10.0;
-  pidDValue = 0.0;
   targetPwm = 0.0;
-  Kp =
-      20.0; // error goes from -0.2 to 0.2, for 100 got 100% until 0.01 distance
-  Ki = 0;
-  Kd = 0;
+
+  minPwm = 0.2;
+  Kp = 20.0; // error goes is in m, with Kp=50 we have 100% PWM until 0.02m
   /*
     // dtsec is expected to be 1/Freq = minTickDt
     double err = targetPosition -
@@ -40,13 +36,13 @@ LinearActuator::LinearActuator(int leg, int actuator, ControlerAB pins, int pos_
     pidDValue = err;
   */
   currentPwm = 0.0;
-  slopePwm = 0.2; // 0 to 1.0 in 0.2sec
-  maxPwm = 0.95;
+  slopePwm = 0.02; // 0 to 1.0 in 20ms
+  maxPwm = 0.98;
   safeArea = 0.05; // 5cm from extremities
   safePwm = 0.5;   // limit power to 50%
 
   emergencyStopArea = 0.01; // 1cm from extremities
-  lostPositionAfter = 0.1;  // if no update for position, stop
+  lostPositionAfter = 0.2;  // if no update for position, stop
 }
 
 LinearActuator::~LinearActuator() {
@@ -91,8 +87,11 @@ void LinearActuator::set(int dir1, int dir2, double pwm) {
 void LinearActuator::moveTo(double position, double power) {
   if (power < 0)
     maxPwm = 0.95;
-  else
+  else {
+    if (power > 0.98)
+      power = 0.98;
     maxPwm = power;
+  }
   if (position > actuatorLength)
     position = actuatorLength;
 
@@ -106,8 +105,11 @@ void LinearActuator::moveTo(double position, double power) {
   }
 }
 
-void print(const char *msg, ...); // comes from main.c, used to debug on serial-stdout
+void print(const char *msg,
+           ...); // comes from main.c, used to debug on serial-stdout
+
 void LinearActuator::tick() {
+  status = LA_STATUS_OK;
   mutex.lock();
   double position;
   position = this->position;
@@ -116,12 +118,11 @@ void LinearActuator::tick() {
   mutex.unlock();
   if ((std::chrono::duration<double>(ndt).count() > lostPositionAfter) ||
       (position < 0)) {
-// we possibily lost nano, emergency stop
-#ifdef DEBUG12
-    if ((leg == 1) && (actuator == 2))
-      print("L12-- lost nano\n");
-#endif
+    status = LA_STATUS_MISSING_NANO;
+    // we possibily lost nano, emergency stop
+    // debug("lost nano!!");
     currentPwm = 0.0;
+    position = -1.0;
     set(1, 1, 0.0);
     return;
   }
@@ -131,18 +132,12 @@ void LinearActuator::tick() {
   if (dtsec < minTickDt)
     return;
   lastTick = Kernel::Clock::now();
-////
-#ifdef DEBUG12
-  if ((leg == 1) && (actuator == 2)) {
-    print("L12#%.4lf#%.4lf#%.4lf#%.4lf#%lf#\n", position, targetPosition,
-          currentPwm, targetPwm, dtsec);
-  }
-#endif
 
   if ((currentPwm == 0.0) && (targetPwm == 0.0)) {
     set(1, 1, 0.0);
     return;
   }
+
   // BEGIN
   // replace below by a PID:
   // targetPwm = Kp * abs(targetPosition-position)
@@ -151,20 +146,21 @@ void LinearActuator::tick() {
   // actuator arrived at destination...
   double err =
       targetPosition - position; // value can be positive or negative, below 0.2
-  pidIValue += err * dtsec;
-  if (pidIValue > pidIMax)
-    pidIValue = pidIMax;
-  if (pidIValue < -pidIMax)
-    pidIValue = -pidIMax;
+  if (fabs(err) < 0.005)         // reach destination
+    targetPwm = 0.0;             // stop actuator
+  else {
 
-  targetPwm = Kp * err + Ki * pidIValue + Kd * (pidDValue - err) / dtsec;
-  pidDValue = err;
-#ifdef DEBUG12
-  if ((leg == 1) && (actuator == 2))
-    print("L12--err: %lf (c:%lf / t:%lf)\n", err, currentPwm, targetPwm);
-#endif
+    targetPwm = Kp * err;
+    if (fabs(targetPwm) < minPwm) {
+      if (targetPwm < 0)
+        targetPwm = -minPwm;
+      else
+        targetPwm = minPwm;
+    }
+  }
   //}
   // END
+
   if (targetPwm > maxPwm)
     targetPwm = maxPwm;
   if (targetPwm < -maxPwm)
@@ -174,27 +170,18 @@ void LinearActuator::tick() {
   //  - emergency
   if (((position < emergencyStopArea) && (targetPwm < 0)) ||
       ((position > (actuatorLength - emergencyStopArea)) && (targetPwm > 0))) {
-#ifdef DEBUG12
-    if ((leg == 1) && (actuator == 2))
-      print("L12--emergency\n");
-#endif
+    status = LA_STATUS_EMERGENCY_AREA;
     currentPwm = 0.0;
     set(1, 1, 0.0);
     return;
   }
   // - safe
   if ((position < safeArea) && (targetPwm < 0)) {
-#ifdef DEBUG12
-    if ((leg == 1) && (actuator == 2))
-      print("L12--safe-\n");
-#endif
+    status = LA_STATUS_SAFE_AREA;
     targetPwm = std::max(targetPwm, -safePwm);
   }
   if ((position > (actuatorLength - safeArea)) && (targetPwm > 0)) {
-#ifdef DEBUG12
-    if ((leg == 1) && (actuator == 2))
-      print("L12--safe+\n");
-#endif
+    status = LA_STATUS_SAFE_AREA;
     targetPwm = std::min(targetPwm, safePwm);
   }
 
@@ -209,50 +196,9 @@ void LinearActuator::tick() {
       currentPwm = targetPwm;
   }
 
-#ifdef DEBUG12
-  if ((leg == 1) && (actuator == 2))
-    print("L12-- set (c:%lf / t:%lf)\n", currentPwm, targetPwm);
-#endif
-
+  // apply pwm
   if (currentPwm > 0)
     set(0, 1, currentPwm);
   else
     set(1, 0, abs(currentPwm));
 }
-
-/*
-void LinearActuator::setSens(LinearActuator::dir_t sensTarget) {
-  switch (sensTarget) {
-  // FIXME sens de la commande
-  case forward:
-    dir1->write(1);
-    dir2->write(0);
-    break;
-  case backward:
-    dir1->write(0);
-    dir2->write(1);
-    break;
-  case none:
-    dir1->write(0);
-    dir2->write(0);
-    break;
-  }
-}
-
-void LinearActuator::setPwm(float intensity) {
-  float cmd;
-  if (intensity > 1) {
-    cmd = 1;
-  } else if (intensity < 0) {
-    cmd = 0;
-  } else {
-    cmd = intensity;
-  }
-  pwm->write(cmd);
-}
-
-void LinearActuator::setPositionInt(uint16_t mesure_int) {
-  positionInt = mesure_int;
-  positionMm = resolution * (positionInt - trigMin);
-}
-*/

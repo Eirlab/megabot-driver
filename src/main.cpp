@@ -13,8 +13,8 @@
 #include <cstdarg>
 #include <cstddef>
 #include <cstdio>
-#include <ratio>
 #include <cstdlib>
+#include <ratio>
 
 /* ************************************************
  *                  Objects
@@ -149,8 +149,10 @@ public:
           la[i][j]->tick();
   }
   void move(int leg, int actuator, float position, float power) {
-    if (la[leg - 1][actuator - 1] != nullptr)
-      la[leg - 1][actuator - 1]->moveTo(position, power);
+    if ((leg >= 1) && (leg <= 4) && (actuator >= 1) && (actuator <=3)) {
+      if (la[leg - 1][actuator - 1] != nullptr)
+        la[leg - 1][actuator - 1]->moveTo(position, power);
+    }
   }
   void print_informations() {
     for (int i = 0; i < 4; ++i)
@@ -163,6 +165,58 @@ public:
           // print("L%d%d#missing#\n", i + 1, j + 1);
         }
   }
+
+  void binary_print_information() {
+#define INFO_HEADER 0xA5
+#define INFO_STATUS_MISSING 0xFF
+
+    struct Info {
+      unsigned char head;
+      unsigned char leg;
+      struct {
+        unsigned short status;
+        short position;
+        short target;
+        short pwm;
+        short pwmtarget;
+      } actuators[3];
+      unsigned char crc1;
+      unsigned char crc2;
+    };
+    // #define STATS_HEADER 0x68
+    //     struct Stats {
+    //         unsigned char head;
+
+    //         unsigned char crc;
+    //     };
+    for (int i = 0; i < 4; ++i) {
+      if ((la[i][0] != nullptr) || (la[i][1] != nullptr) ||
+          (la[i][2] != nullptr)) {
+        struct Info info = {.head = INFO_HEADER};
+        info.leg = i + 1;
+        for (int j = 0; j < 3; ++j) {
+          if (la[i][j] != nullptr) {
+            info.actuators[j].status = la[i][j]->status;
+            info.actuators[j].position = la[i][j]->getPosition() * 10000;
+            info.actuators[j].target = la[i][j]->getTargetPosition() * 10000;
+            info.actuators[j].pwm = la[i][j]->getCurrentPwm() * 10000;
+            info.actuators[j].pwmtarget = la[i][j]->getTargetPwm() * 10000;
+
+          } else {
+            info.actuators[j].status = INFO_STATUS_MISSING;
+            info.actuators[j].position = 0;
+            info.actuators[j].target = 0;
+            info.actuators[j].pwm = 0;
+            info.actuators[j].pwmtarget = 0;
+          }
+        }
+        info.crc1 = get_crc((unsigned char *)&info, sizeof(info) - 2);
+        info.crc2 = get_crc((unsigned char *)&info, sizeof(info) - 1);
+        serialMaster.write(&info, sizeof(info));
+      }
+    }
+  }
+
   void stop() {
     for (int i = 0; i < 4; ++i)
       for (int j = 0; j < 3; ++j)
@@ -196,21 +250,25 @@ LinearActuator la23(2, 3, C2B, 0, 1023, FREQ);
 
 LinearActuator la11(3, 1, C1A, 0, 1023, FREQ);
 LinearActuator la12(3, 2, C2A, 32, 997, FREQ);
-LinearActuator la13(3, 3, C3A, 0, 1023, FREQ);
+// LinearActuator la13(3, 3, C3A, 0, 1023, FREQ);
+LinearActuator la13(3, 3, C2B, 0, 1023, FREQ);
 
 LinearActuator la21(4, 1, C1B, 0, 1023, FREQ);
 LinearActuator la22(4, 2, C3B, 24, 1000, FREQ);
-LinearActuator la23(4, 3, C2B, 0, 1023, FREQ);
+// LinearActuator la23(4, 3, C2B, 0, 1023, FREQ);
+LinearActuator la23(4, 3, C3A, 0, 1023, FREQ);
 
 #endif
 
 NanosToLinearActuator nanosToLinearActuators;
 
-int cmpint(const int *a,const int *b){
-    if (*a<*b) return -1;
-    if (*a==*b) return 0;
-    return 1;
-}   
+int cmpint(const int *a, const int *b) {
+  if (*a < *b)
+    return -1;
+  if (*a == *b)
+    return 0;
+  return 1;
+}
 
 class KMeanFilter : public MuxComCallback {
   MuxComCallback *next;
@@ -244,12 +302,13 @@ public:
     pos[l][a] = (pos[l][a] + 1) % size;
     for (int s = 0; s < size; ++s)
       buf[s] = values[l][a][s];
-    std::qsort(buf,size,sizeof(buf[0]),(int (*)(const void *,const void *))cmpint);
-    next->value(leg,actuator,buf[size/2]);
+    std::qsort(buf, size, sizeof(buf[0]),
+               (int (*)(const void *, const void *))cmpint);
+    next->value(leg, actuator, buf[size / 2]);
   }
 };
 
-KMeanFilter kmeanFilter(5,&nanosToLinearActuators);
+KMeanFilter kmeanFilter(5, &nanosToLinearActuators);
 
 MuxCommunication muxCom(&Flags, &kmeanFilter);
 
@@ -285,7 +344,10 @@ void move_order(int leg, int actuator, float position, float power) {
 
 void parser_error(const char *msg) { print(msg); }
 
-void print_informations() { nanosToLinearActuators.print_informations(); }
+void print_informations() {
+  // nanosToLinearActuators.print_informations();
+  nanosToLinearActuators.binary_print_information();
+}
 
 static double print_freq = 0.0;
 
@@ -300,7 +362,7 @@ void stop() { nanosToLinearActuators.stop(); }
 
 int main() {
   char input[500];
-  Parser parser(500);
+  ParserBin parser(1000);
   parser.l_cb = move_order;
   parser.error_cb = parser_error;
   parser.i_cb = print_informations;
@@ -322,7 +384,7 @@ int main() {
   auto lastDt = Kernel::Clock::now();
 
   while (true) {
-
+    //serialMaster.write("A\n", 2);
     auto n = Kernel::Clock::now();
     if (std::chrono::duration<double>(n - lastDt).count() > 1) {
       print("com: %d success / %d failed  => %lf %%\n", muxCom.success,
@@ -330,15 +392,19 @@ int main() {
             100.0 * (double)muxCom.failed / (double)muxCom.success);
       lastDt = n;
     }
+    //serialMaster.write("B\n", 2);
 
     nanosToLinearActuators.tick();
+    //serialMaster.write("C\n", 2);
 
     if (serialMaster.readable()) {
       int c = serialMaster.read(input, 500);
-      //input[c] = '\0';
+      // input[c] = '\0';
       // print("input:%s\n", input);
       parser.append(input, c);
     }
+    //serialMaster.write("D\n", 2);
+
     if (print_freq > 0) {
       auto dt = Kernel::Clock::now() - lastPrint;
       if (std::chrono::duration<double>(dt).count() > print_freq) {
@@ -346,6 +412,9 @@ int main() {
         lastPrint = Kernel::Clock::now();
       }
     }
+    //serialMaster.write("E\n", 2);
+
     //    ThisThread::sleep_for(2ms);
   }
+  serialMaster.write("F\n", 2);
 }

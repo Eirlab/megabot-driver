@@ -11,6 +11,11 @@ struct ControlerAB{
     ControlerAB(PinName DIR1,PinName DIR2,PinName PWM):DIR1(DIR1),DIR2(DIR2),PWM(PWM){}
 };
 
+#define LA_STATUS_OK               1
+#define LA_STATUS_SAFE_AREA        2
+#define LA_STATUS_EMERGENCY_AREA   4
+#define LA_STATUS_MISSING_NANO     8
+
 
 class LinearActuator {
 public:
@@ -34,6 +39,7 @@ public:
 
   int leg, actuator;
 
+  unsigned char status;
 private:
   Mutex mutex;
   // id
@@ -43,15 +49,13 @@ private:
   double actuatorLength;
   // target
   double targetPosition;
-  double pidIValue;
-  double pidIMax;
-  double pidDValue;
-  double Kp,Ki,Kd;
+  double Kp;
   // pwm
   double targetPwm;
   double currentPwm;
   double slopePwm;
   double maxPwm;
+  double minPwm;
   // safe area:
   double safeArea;
   double safePwm;
