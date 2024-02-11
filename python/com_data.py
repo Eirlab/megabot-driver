@@ -99,7 +99,31 @@ class Infos(cstruct.MemCStruct):
         return self.pwm / 10000.0
     def get_target_pwm(self,a):
         return self.pwmtarget / 10000.0
+
+class GlobalInfos(cstruct.MemCStruct):
+    __byte_order__ = cstruct.LITTLE_ENDIAN
     
+    __def__ = """
+    #define GLOBAL_INFO_HEADER 0x53
+
+    struct GlobalInfo {
+      unsigned char head;
+      unsigned char padding[3];
+      unsigned int main_ticking;
+      unsigned int actuator_ticking[12];
+      unsigned int read_ticking[12];
+      unsigned char end_padding[2];
+      unsigned char crc1;
+      unsigned char crc2;
+    };
+    """
+    def check(self):
+        try:
+            d=self.pack()
+            return self.crc1 == get_crc(d[:-2]) and self.crc2==get_crc(d[:-1]) and self.padding[0]==0 and self.padding[1]==1 and  self.padding[2]==2
+        except:
+            pass
+        return False
     
 # o = Order()
 # import os
@@ -111,3 +135,8 @@ class Infos(cstruct.MemCStruct):
 
 # i=Infos()
 # i.actuators[0].status=0
+
+
+if __name__ == "__main__":
+    g=GlobalInfos()
+    print(g.size)

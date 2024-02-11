@@ -1,5 +1,6 @@
 #include "DigitalOut.h"
 #include "GlobalConfig.h"
+#include "Kernel.h"
 #include "LinearActuator.h"
 #include "MuxCommunication.h"
 #include "Parser.hpp"
@@ -76,6 +77,8 @@ LEG ACTU MIN  MAX
   4    3   0 1023
 */
 
+unsigned int main_ticking = 0;
+
 class DebugNanos : public MuxComCallback {
   char buffer[500];
   int nread[4 * 3];
@@ -126,13 +129,17 @@ public:
 DebugNanos debugNanos;
 
 class NanosToLinearActuator : public MuxComCallback {
-  LinearActuator *la[4][3];
 
 public:
+  LinearActuator *la[4][3];
+  unsigned int read_ticking[4][3];
+
   NanosToLinearActuator() {
     for (int i = 0; i < 4; ++i)
-      for (int j = 0; j < 3; ++j)
+      for (int j = 0; j < 3; ++j) {
         la[i][j] = nullptr;
+        read_ticking[i][j] = 0;
+      }
   }
   void addLinearActuator(LinearActuator *actuator) {
     la[actuator->leg - 1][actuator->actuator - 1] = actuator;
@@ -149,7 +156,7 @@ public:
           la[i][j]->tick();
   }
   void move(int leg, int actuator, float position, float power) {
-    if ((leg >= 1) && (leg <= 4) && (actuator >= 1) && (actuator <=3)) {
+    if ((leg >= 1) && (leg <= 4) && (actuator >= 1) && (actuator <= 3)) {
       if (la[leg - 1][actuator - 1] != nullptr)
         la[leg - 1][actuator - 1]->moveTo(position, power);
     }
@@ -192,7 +199,8 @@ public:
     for (int i = 0; i < 4; ++i) {
       if ((la[i][0] != nullptr) || (la[i][1] != nullptr) ||
           (la[i][2] != nullptr)) {
-        struct Info info = {.head = INFO_HEADER};
+        struct Info info;
+        info.head = INFO_HEADER;
         info.leg = i + 1;
         for (int j = 0; j < 3; ++j) {
           if (la[i][j] != nullptr) {
@@ -212,7 +220,13 @@ public:
         }
         info.crc1 = get_crc((unsigned char *)&info, sizeof(info) - 2);
         info.crc2 = get_crc((unsigned char *)&info, sizeof(info) - 1);
-        serialMaster.write(&info, sizeof(info));
+        // serialMaster.write(&info, sizeof(info));
+        /*char buffer[100];
+        static int counter=0;
+        int i=snprintf(buffer,100,"%d;%lf\n",counter,la[3][1]->getPosition());
+        counter+=1;
+        serialMaster.write(buffer,i);
+        */
       }
     }
   }
@@ -270,47 +284,86 @@ int cmpint(const int *a, const int *b) {
   return 1;
 }
 
-class KMeanFilter : public MuxComCallback {
-  MuxComCallback *next;
+class MedianFilter {
   int size;
-  int *values[4][3];
-  int pos[4][3];
-  int *buf;
+  int *values;
+  int *buffer;
+  int position;
+  double period;
+  rtos::Kernel::Clock::time_point lastCompute;
 
 public:
-  virtual ~KMeanFilter() {
-
-    for (int l = 0; l < 4; ++l)
-      for (int a = 0; a < 3; ++a)
-        delete[] values[l][a];
+  MedianFilter(int size, int freq) {
+    this->size = size;
+    values = new int[size];
+    buffer = new int[size];
+    position = 0;
+    for (int i = 0; i < size; ++i) {
+      values[i] = 0;
+      buffer[i] = 0;
+    }
+    period = 1.0 / ((double)freq);
+    lastCompute = Kernel::Clock::now();
   }
-  KMeanFilter(int size, MuxComCallback *next) : next(next), size(size) {
+  bool newValue(int v, int &r) {
+    values[position] = v;
+    position = (position + 1) % size;
+    auto t = Kernel::Clock::now();
+    if (std::chrono::duration<double>(t - lastCompute).count() > period) {
+
+      lastCompute = t;
+      //      print("computing value!\n");
+      for (int i = 0; i < size; ++i)
+        buffer[i] = values[i];
+      std::qsort(buffer, size, sizeof(buffer[0]),
+                 (int (*)(const void *, const void *))cmpint);
+      r = buffer[size / 2];
+
+      return true;
+    }
+    return false;
+  }
+};
+class XMedianFilter : public MuxComCallback {
+  MuxComCallback *next;
+  MedianFilter *filters[4][3];
+
+public:
+  virtual ~XMedianFilter() {
     for (int l = 0; l < 4; ++l)
       for (int a = 0; a < 3; ++a) {
-        pos[l][a] = 0;
-        values[l][a] = new int[size];
-        for (int s = 0; s < size; ++s)
-          values[l][a][s] = 0;
+        delete filters[l][a];
       }
-    buf = new int[size];
+  }
+  XMedianFilter(int size, int freq, MuxComCallback *next) : next(next) {
+    for (int l = 0; l < 4; ++l)
+      for (int a = 0; a < 3; ++a) {
+        filters[l][a] = new MedianFilter(size, freq);
+      }
   }
 
   virtual void value(int leg, int actuator, int value) {
     int l = leg - 1;
     int a = actuator - 1;
-    values[l][a][pos[l][a]] = value;
-    pos[l][a] = (pos[l][a] + 1) % size;
-    for (int s = 0; s < size; ++s)
-      buf[s] = values[l][a][s];
-    std::qsort(buf, size, sizeof(buf[0]),
-               (int (*)(const void *, const void *))cmpint);
-    next->value(leg, actuator, buf[size / 2]);
+    int newvalue;
+    if ((leg == 4) && (actuator == 2)) {
+      char buffer[100];
+      static int counter = 0;
+      int i =
+          snprintf(buffer, 100, "%d;%d\n", counter, value);
+      counter += 1;
+      serialMaster.write(buffer, i);
+    }
+    if (filters[l][a]->newValue(value, newvalue)) {
+      next->value(leg, actuator, newvalue);
+    }
   }
 };
 
-KMeanFilter kmeanFilter(7, &nanosToLinearActuators);
+XMedianFilter medianFilter(3, FREQ * 2, &nanosToLinearActuators);
 
-MuxCommunication muxCom(&Flags, &kmeanFilter);
+MuxCommunication muxCom(&Flags, &medianFilter);
+// MuxCommunication muxCom(&Flags, &nanosToLinearActuators);
 
 /* ************************************************
  *         MAIN - LinearActuator thread
@@ -349,6 +402,45 @@ void print_informations() {
   nanosToLinearActuators.binary_print_information();
 }
 
+void binary_print_global_information() {
+#define GLOBAL_INFO_HEADER 0x53
+
+  struct GlobalInfo {
+    unsigned char head;
+    unsigned char padding[3];
+    unsigned int main_ticking;
+    unsigned int actuator_ticking[12];
+    unsigned int read_ticking[12];
+    unsigned char end_padding[2];
+    unsigned char crc1;
+    unsigned char crc2;
+  };
+  struct GlobalInfo info;
+  info.head = GLOBAL_INFO_HEADER;
+  info.padding[0] = 0;
+  info.padding[1] = 1;
+  info.padding[2] = 2;
+  info.main_ticking = main_ticking;
+  main_ticking = 0;
+
+  for (int i = 0; i < 4; ++i)
+    for (int j = 0; j < 3; ++j) {
+      if (nanosToLinearActuators.la[i][j] != nullptr) {
+        info.actuator_ticking[i * 3 + j] =
+            nanosToLinearActuators.la[i][j]->nticking;
+        nanosToLinearActuators.la[i][j]->nticking = 0;
+      } else {
+        info.actuator_ticking[i * 3 + j] = 0;
+      }
+      info.read_ticking[i * 3 + j] = nanosToLinearActuators.read_ticking[i][j];
+    }
+  info.end_padding[0] = 0;
+  info.end_padding[1] = 1;
+  info.crc1 = get_crc((unsigned char *)&info, sizeof(info) - 2);
+  info.crc2 = get_crc((unsigned char *)&info, sizeof(info) - 1);
+  serialMaster.write(&info, sizeof(info));
+}
+
 static double print_freq = 0.0;
 
 auto lastPrint = Kernel::Clock::now();
@@ -378,24 +470,27 @@ int main() {
   nanosToLinearActuators.addLinearActuator(&la23);
 
   muxCom.run();
+  serialMaster.write("HELLO\n", 6);
 
+  ThisThread::sleep_for(2s);
+  serialMaster.write("HELLO\n", 6);
+  ThisThread::sleep_for(2s);
   serialMaster.write("HELLO\n", 6);
 
   auto lastDt = Kernel::Clock::now();
 
   while (true) {
-    //serialMaster.write("A\n", 2);
+    // serialMaster.write("A\n", 2);
+    main_ticking += 1;
     auto n = Kernel::Clock::now();
     if (std::chrono::duration<double>(n - lastDt).count() > 1) {
-      print("com: %d success / %d failed  => %lf %%\n", muxCom.success,
-            muxCom.failed,
-            100.0 * (double)muxCom.failed / (double)muxCom.success);
+      // binary_print_global_information();
       lastDt = n;
     }
-    //serialMaster.write("B\n", 2);
+    // serialMaster.write("B\n", 2);
 
     nanosToLinearActuators.tick();
-    //serialMaster.write("C\n", 2);
+    // serialMaster.write("C\n", 2);
 
     if (serialMaster.readable()) {
       int c = serialMaster.read(input, 500);
@@ -403,7 +498,7 @@ int main() {
       // print("input:%s\n", input);
       parser.append(input, c);
     }
-    //serialMaster.write("D\n", 2);
+    // serialMaster.write("D\n", 2);
 
     if (print_freq > 0) {
       auto dt = Kernel::Clock::now() - lastPrint;
@@ -412,7 +507,7 @@ int main() {
         lastPrint = Kernel::Clock::now();
       }
     }
-    //serialMaster.write("E\n", 2);
+    // serialMaster.write("E\n", 2);
 
     //    ThisThread::sleep_for(2ms);
   }

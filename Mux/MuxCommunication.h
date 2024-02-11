@@ -68,7 +68,7 @@ private:
   };
 
   bool check_nano(uint32_t value, int &legSelected, int &linearActuatorSelected,
-                  uint16_t &mesureInt);
+                  int &mesureInt);
 };
 
 #endif // MEGABOT_DRIVER_MUXCOMMUNICATION_H

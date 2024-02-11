@@ -4,23 +4,23 @@
 #include "GlobalConfig.h"
 #include "mbed.h"
 
-struct ControlerAB{
-    PinName DIR1;
-    PinName DIR2;
-    PinName PWM;
-    ControlerAB(PinName DIR1,PinName DIR2,PinName PWM):DIR1(DIR1),DIR2(DIR2),PWM(PWM){}
+struct ControlerAB {
+  PinName DIR1;
+  PinName DIR2;
+  PinName PWM;
+  ControlerAB(PinName DIR1, PinName DIR2, PinName PWM)
+      : DIR1(DIR1), DIR2(DIR2), PWM(PWM) {}
 };
 
-#define LA_STATUS_OK               1
-#define LA_STATUS_SAFE_AREA        2
-#define LA_STATUS_EMERGENCY_AREA   4
-#define LA_STATUS_MISSING_NANO     8
-
+#define LA_STATUS_OK 1
+#define LA_STATUS_SAFE_AREA 2
+#define LA_STATUS_EMERGENCY_AREA 4
+#define LA_STATUS_MISSING_NANO 8
 
 class LinearActuator {
 public:
-  LinearActuator(int leg, int actuator, ControlerAB pins,
-                 int pos_min, int pos_max, double freq);
+  LinearActuator(int leg, int actuator, ControlerAB pins, int pos_min,
+                 int pos_max, double freq);
 
   ~LinearActuator();
 
@@ -30,7 +30,7 @@ public:
   double getCurrentPwm();
 
   void setPositionNano(uint16_t mesure_int);
-  
+
   void stop();
 
   void moveTo(double position, double power);
@@ -40,6 +40,8 @@ public:
   int leg, actuator;
 
   unsigned char status;
+
+  unsigned int nticking = 0;
 private:
   Mutex mutex;
   // id

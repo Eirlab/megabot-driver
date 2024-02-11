@@ -51,7 +51,13 @@ LinearActuator::~LinearActuator() {
   delete dir2;
 }
 
-double LinearActuator::getPosition() { return position; }
+double LinearActuator::getPosition() {
+  double p;
+  mutex.lock();
+  p = position;
+  mutex.unlock();
+  return p;
+}
 double LinearActuator::getTargetPosition() { return targetPosition; }
 double LinearActuator::getTargetPwm() { return targetPwm; }
 double LinearActuator::getCurrentPwm() { return currentPwm; }
@@ -131,6 +137,7 @@ void LinearActuator::tick() {
   double dtsec = std::chrono::duration<double>(dt).count();
   if (dtsec < minTickDt)
     return;
+  nticking += 1;
   lastTick = Kernel::Clock::now();
 
   if ((currentPwm == 0.0) && (targetPwm == 0.0)) {
