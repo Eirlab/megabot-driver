@@ -2,13 +2,14 @@
 #include "GlobalConfig.h"
 #include "Kernel.h"
 #include "LinearActuator.h"
-#include "MuxCommunication.h"
+#include "NanoCommunication.h"
 #include "Parser.hpp"
 #include "PinOut.h"
 #include "SerialBase.h"
 #include "Timer.h"
 #include "mbed.h"
 #include "mbed_debug.h"
+#include <Filters.hpp>
 #include <cctype>
 #include <chrono>
 #include <cstdarg>
@@ -16,49 +17,18 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ratio>
+#include <vector>
 
 /* ************************************************
  *                  Objects
  * ************************************************/
 EventFlags Flags;
 BufferedSerial serialMaster(USBTX, USBRX, BaudRateMaster);
+Kernel::Clock::time_point startTime = Kernel::Clock::now();
 
 void print(const char *msg, ...);
+
 /*
-LinearActuator baseLegA(baseLA, pin_LegA_baseLeg_PWM, pin_LegA_baseLeg_DIR1,
-                        pin_LegA_baseLeg_DIR2, LegA_baseLeg_Pos_Min,
-                        LegA_baseLeg_Pos_Max, &Flags);
-
-LinearActuator middleLegA(middleLA, pin_LegA_middleLeg_PWM,
-                          pin_LegA_middleLeg_DIR1, pin_LegA_middleLeg_DIR2,
-                          LegA_middleLeg_Pos_Min, LegA_middleLeg_Pos_Max,
-                          &Flags);
-
-LinearActuator endLegA(endLA, pin_LegA_endLeg_PWM, pin_LegA_endLeg_DIR1,
-                       pin_LegA_endLeg_DIR2, LegA_endLeg_Pos_Min,
-                       LegA_endLeg_Pos_Max, &Flags);
-
-LinearActuator baseLegB(baseLA, pin_LegB_baseLeg_PWM, pin_LegB_baseLeg_DIR1,
-                        pin_LegB_baseLeg_DIR2, LegB_baseLeg_Pos_Min,
-                        LegB_baseLeg_Pos_Max, &Flags);
-
-LinearActuator middleLegB(middleLA, pin_LegB_middleLeg_PWM,
-                          pin_LegB_middleLeg_DIR1, pin_LegB_middleLeg_DIR2,
-                          LegB_middleLeg_Pos_Min, LegB_middleLeg_Pos_Max,
-                          &Flags);
-
-LinearActuator endLegB(endLA, pin_LegB_endLeg_PWM, pin_LegB_endLeg_DIR1,
-                       pin_LegB_endLeg_DIR2, LegB_endLeg_Pos_Min,
-                       LegB_endLeg_Pos_Max, &Flags);
-*/
-// TODO: Ici on met à jour l'id de la Leg et on va vérifier dans GlobalConfig
-// que les flags soient bien configurés
-/*
-Leg legA(leg1, &baseLegA, &middleLegA, &endLegA);
-Leg legB(leg2, &baseLegB, &middleLegB, &endLegB);
-
-Leg *legs[4] = {nullptr, nullptr, nullptr, nullptr};
-
 LEG ACTU MIN  MAX
   1    1   0 1023
   1    2  26  973
@@ -73,62 +43,13 @@ LEG ACTU MIN  MAX
   3    3   0 1023
 
   4    1   0 1023
-  4    2  24 1000
+  4    2  22 954
   4    3   0 1023
 */
 
 unsigned int main_ticking = 0;
 
-class DebugNanos : public MuxComCallback {
-  char buffer[500];
-  int nread[4 * 3];
-  Kernel::Clock::time_point dt[4 * 3];
-  Timer last[4 * 3];
-  double mindt[4 * 3];
-  double maxdt[4 * 3];
-
-public:
-  DebugNanos() {
-    for (int i = 0; i < 4 * 3; ++i) {
-      nread[i] = 0;
-      dt[i] = Kernel::Clock::now();
-      last[i].start();
-      mindt[i] = 10.0;
-      maxdt[i] = 0.0;
-    }
-  }
-  virtual void value(int leg, int actuator, int value) override {
-    int id = (leg - 1) * 3 + actuator - 1;
-    nread[id] += 1;
-    auto n = Kernel::Clock::now();
-    last[id].stop();
-    double d = std::chrono::duration<double>(last[id].elapsed_time()).count();
-    mindt[id] = min(mindt[id], d);
-    maxdt[id] = max(maxdt[id], d);
-
-    auto x = Kernel::Clock::now() - dt[id];
-    if (std::chrono::duration<double>(x).count() > 1) {
-      //   if (nread[id] == 50) {
-      //    auto x = Kernel::Clock::now() - dt[id];
-      int l = snprintf(
-          buffer, 500,
-          "*** leg %d actuator %d  value %d %lf s (%lf / %lf) %d\n", leg,
-          actuator, value, std::chrono::duration<double>(x).count() / nread[id],
-          mindt[id], maxdt[id], nread[id]);
-      dt[id] = Kernel::Clock::now();
-      nread[id] = 0;
-      mindt[id] = 10.0;
-      maxdt[id] = 0.0;
-      serialMaster.write(buffer, l);
-    }
-
-    last[id].reset();
-    last[id].start();
-  }
-};
-DebugNanos debugNanos;
-
-class NanosToLinearActuator : public MuxComCallback {
+class NanosToLinearActuator : public NanoComCallback, public Job {
 
 public:
   LinearActuator *la[4][3];
@@ -149,12 +70,14 @@ public:
       la[leg - 1][actuator - 1]->setPositionNano(value);
     }
   }
-  void tick() {
+
+  void tick() override {
     for (int i = 0; i < 4; ++i)
       for (int j = 0; j < 3; ++j)
         if (la[i][j] != nullptr)
           la[i][j]->tick();
   }
+
   void move(int leg, int actuator, float position, float power) {
     if ((leg >= 1) && (leg <= 4) && (actuator >= 1) && (actuator <= 3)) {
       if (la[leg - 1][actuator - 1] != nullptr)
@@ -220,13 +143,7 @@ public:
         }
         info.crc1 = get_crc((unsigned char *)&info, sizeof(info) - 2);
         info.crc2 = get_crc((unsigned char *)&info, sizeof(info) - 1);
-        // serialMaster.write(&info, sizeof(info));
-        /*char buffer[100];
-        static int counter=0;
-        int i=snprintf(buffer,100,"%d;%lf\n",counter,la[3][1]->getPosition());
-        counter+=1;
-        serialMaster.write(buffer,i);
-        */
+        serialMaster.write(&info, sizeof(info));
       }
     }
   }
@@ -276,110 +193,11 @@ LinearActuator la23(4, 3, C3A, 0, 1023, FREQ);
 
 NanosToLinearActuator nanosToLinearActuators;
 
-int cmpint(const int *a, const int *b) {
-  if (*a < *b)
-    return -1;
-  if (*a == *b)
-    return 0;
-  return 1;
-}
-
-class MedianFilter {
-  int size;
-  int *values;
-  int *buffer;
-  int position;
-  double period;
-  rtos::Kernel::Clock::time_point lastCompute;
-
-public:
-  MedianFilter(int size, int freq) {
-    this->size = size;
-    values = new int[size];
-    buffer = new int[size];
-    position = 0;
-    for (int i = 0; i < size; ++i) {
-      values[i] = 0;
-      buffer[i] = 0;
-    }
-    period = 1.0 / ((double)freq);
-    lastCompute = Kernel::Clock::now();
-  }
-  bool newValue(int v, int &r) {
-    values[position] = v;
-    position = (position + 1) % size;
-    auto t = Kernel::Clock::now();
-    if (std::chrono::duration<double>(t - lastCompute).count() > period) {
-
-      lastCompute = t;
-      //      print("computing value!\n");
-      for (int i = 0; i < size; ++i)
-        buffer[i] = values[i];
-      std::qsort(buffer, size, sizeof(buffer[0]),
-                 (int (*)(const void *, const void *))cmpint);
-      r = buffer[size / 2];
-
-      return true;
-    }
-    return false;
-  }
-};
-class XMedianFilter : public MuxComCallback {
-  MuxComCallback *next;
-  MedianFilter *filters[4][3];
-
-public:
-  virtual ~XMedianFilter() {
-    for (int l = 0; l < 4; ++l)
-      for (int a = 0; a < 3; ++a) {
-        delete filters[l][a];
-      }
-  }
-  XMedianFilter(int size, int freq, MuxComCallback *next) : next(next) {
-    for (int l = 0; l < 4; ++l)
-      for (int a = 0; a < 3; ++a) {
-        filters[l][a] = new MedianFilter(size, freq);
-      }
-  }
-
-  virtual void value(int leg, int actuator, int value) {
-    int l = leg - 1;
-    int a = actuator - 1;
-    int newvalue;
-    if ((leg == 4) && (actuator == 2)) {
-      char buffer[100];
-      static int counter = 0;
-      int i =
-          snprintf(buffer, 100, "%d;%d\n", counter, value);
-      counter += 1;
-      serialMaster.write(buffer, i);
-    }
-    if (filters[l][a]->newValue(value, newvalue)) {
-      next->value(leg, actuator, newvalue);
-    }
-  }
-};
-
 XMedianFilter medianFilter(3, FREQ * 2, &nanosToLinearActuators);
-
-MuxCommunication muxCom(&Flags, &medianFilter);
-// MuxCommunication muxCom(&Flags, &nanosToLinearActuators);
 
 /* ************************************************
  *         MAIN - LinearActuator thread
  * ************************************************/
-// void tickerWorker(){
-
-// }
-/*
-char dbg_buffer[500];
-void debug(const char *msg, ...) {
-  va_list l;
-  va_start(l, msg);
-  int r = vsnprintf(dbg_buffer, 500, msg, l);
-  va_end(l);
-  serialMaster.write(dbg_buffer, r);
-}*/
 
 void print(const char *msg, ...) {
   static char buf[200];
@@ -407,13 +225,13 @@ void binary_print_global_information() {
 
   struct GlobalInfo {
     unsigned char head;
-    unsigned char padding[3];
-    unsigned int main_ticking;
-    unsigned int actuator_ticking[12];
-    unsigned int read_ticking[12];
+    unsigned char padding[3];          // 4
+    unsigned int main_ticking;         // 8
+    unsigned int actuator_ticking[12]; // 4*12=48 => 56
+    unsigned int read_ticking[12];     // +48 => 104
     unsigned char end_padding[2];
     unsigned char crc1;
-    unsigned char crc2;
+    unsigned char crc2; // 108
   };
   struct GlobalInfo info;
   info.head = GLOBAL_INFO_HEADER;
@@ -452,7 +270,12 @@ void set_print_informations_freq(float freq) {
 
 void stop() { nanosToLinearActuators.stop(); }
 
+#define smwrite(s) serialMaster.write(s, strlen(s));serialMaster.sync();
+
 int main() {
+
+  smwrite("starting...\n");
+
   char input[500];
   ParserBin parser(1000);
   parser.l_cb = move_order;
@@ -460,6 +283,8 @@ int main() {
   parser.i_cb = print_informations;
   parser.p_cb = set_print_informations_freq;
   parser.s_cb = stop;
+
+  smwrite("parser setup\n");
 
   //  serialMaster.set_blocking(false);
   nanosToLinearActuators.addLinearActuator(&la11);
@@ -469,33 +294,43 @@ int main() {
   nanosToLinearActuators.addLinearActuator(&la22);
   nanosToLinearActuators.addLinearActuator(&la23);
 
-  muxCom.run();
-  serialMaster.write("HELLO\n", 6);
+  smwrite("creating nano serial... ");
 
-  ThisThread::sleep_for(2s);
-  serialMaster.write("HELLO\n", 6);
-  ThisThread::sleep_for(2s);
-  serialMaster.write("HELLO\n", 6);
 
-  auto lastDt = Kernel::Clock::now();
+  Job *jobs[5];
+  NanoComCallback *nextCb = &nanosToLinearActuators;
+  jobs[0]=&nanosToLinearActuators;
+  NanoDirectCom dcPd2(PD_2, nextCb);
+  jobs[1]=&dcPd2;
+  NanoDirectCom dcPa1(PA_1, nextCb);
+  jobs[2]=&dcPa1;
+  NanoDirectCom dcPc5(PC_5, nextCb);
+  jobs[3]=&dcPc5;
+  NanoMuxCom mc(nextCb);
+  jobs[4]=&mc;
+  smwrite("done\n");
+
+  smwrite("main loop...\n");
+
+  auto lastBinaryInfo = Kernel::Clock::now();
 
   while (true) {
-    // serialMaster.write("A\n", 2);
     main_ticking += 1;
     auto n = Kernel::Clock::now();
-    if (std::chrono::duration<double>(n - lastDt).count() > 1) {
-      // binary_print_global_information();
-      lastDt = n;
+    if (std::chrono::duration<double>(n - lastBinaryInfo).count() > 1) {
+      binary_print_global_information();
+      lastBinaryInfo = n;
     }
-    // serialMaster.write("B\n", 2);
+     //serialMaster.write("B\n", 2);
 
-    nanosToLinearActuators.tick();
-    // serialMaster.write("C\n", 2);
+    for (int j=0;j<5;++j){
+      jobs[j]->tick();
+    }
+
+     //serialMaster.write("C\n", 2);
 
     if (serialMaster.readable()) {
       int c = serialMaster.read(input, 500);
-      // input[c] = '\0';
-      // print("input:%s\n", input);
       parser.append(input, c);
     }
     // serialMaster.write("D\n", 2);
@@ -511,5 +346,4 @@ int main() {
 
     //    ThisThread::sleep_for(2ms);
   }
-  serialMaster.write("F\n", 2);
 }

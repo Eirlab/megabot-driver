@@ -114,20 +114,20 @@ class ControlerHandler(Thread):
                                                                         self.legs[i.leg-1][a]['time']))
                                 p+=com_data.Infos.size                                
                             else:
-                                print("infos check wrong:",i)
+                                #print("infos check wrong:",i)
                                 p+=1
                         elif d[p]==0x53 and (len(d)-p)>=com_data.GlobalInfos.size:
                             i=com_data.GlobalInfos(d[p:])
                             if i.check():
-                                print("stats: main:",end='')
-                                print(i.main_ticking,end='')
-                                for l in range(4):
-                                    for a in range(3):
-                                        print('L',l+1,a+1,'[',i.actuator_ticking[l*3+a],',',i.read_ticking[l*3+a],']',end='')
-                                print()
+                                #print("stats: main:",end='')
+                                #print(i.main_ticking,end='')
+                                #for l in range(4):
+                                #    for a in range(3):
+                                #        print('L',l+1,a+1,'[',i.actuator_ticking[l*3+a],',',i.read_ticking[l*3+a],']',end='')
+                                #print()
                                 p+=com_data.GlobalInfos.size
                             else:
-                                print("main stats check wrong:",i)
+                                #print("main stats check wrong:",i)
                                 p+=1
                         else:
                             if self.print_str_msg:

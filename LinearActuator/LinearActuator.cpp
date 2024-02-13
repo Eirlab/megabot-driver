@@ -23,7 +23,7 @@ LinearActuator::LinearActuator(int leg, int actuator, ControlerAB pins,
   targetPwm = 0.0;
 
   minPwm = 0.1;
-  Kp = 10.0; // error goes is in m, with Kp=50 we have 100% PWM until 0.02m
+  Kp = 50.0; // error goes is in m, with Kp=50 we have 100% PWM until 0.02m
   /*
     // dtsec is expected to be 1/Freq = minTickDt
     double err = targetPosition -
@@ -38,7 +38,7 @@ LinearActuator::LinearActuator(int leg, int actuator, ControlerAB pins,
   currentPwm = 0.0;
   slopePwm = 0.02; // 0 to 1.0 in 20ms
   maxPwm = 0.98;
-  safeArea = 0.05; // 5cm from extremities
+  safeArea = 0.03; // 5cm from extremities
   safePwm = 0.5;   // limit power to 50%
 
   emergencyStopArea = 0.01; // 1cm from extremities
@@ -53,9 +53,7 @@ LinearActuator::~LinearActuator() {
 
 double LinearActuator::getPosition() {
   double p;
-  mutex.lock();
   p = position;
-  mutex.unlock();
   return p;
 }
 double LinearActuator::getTargetPosition() { return targetPosition; }
@@ -70,7 +68,6 @@ void LinearActuator::stop() {
 }
 
 void LinearActuator::setPositionNano(uint16_t mesure_int) {
-  mutex.lock();
   posNano = mesure_int;
   if (posNano < posMinNano)
     position = 0.0;
@@ -80,7 +77,6 @@ void LinearActuator::setPositionNano(uint16_t mesure_int) {
     position = actuatorLength * (double)(mesure_int - posMinNano) /
                (double)(posMaxNano - posMinNano);
   lastNanoRead = Kernel::Clock::now();
-  mutex.unlock();
 }
 
 void LinearActuator::set(int dir1, int dir2, double pwm) {
@@ -116,12 +112,10 @@ void print(const char *msg,
 
 void LinearActuator::tick() {
   status = LA_STATUS_OK;
-  mutex.lock();
   double position;
   position = this->position;
   // check nano last time read:
   auto ndt = Kernel::Clock::now() - lastNanoRead;
-  mutex.unlock();
   if ((std::chrono::duration<double>(ndt).count() > lostPositionAfter) ||
       (position < 0)) {
     status = LA_STATUS_MISSING_NANO;
