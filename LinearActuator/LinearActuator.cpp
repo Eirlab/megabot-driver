@@ -22,8 +22,8 @@ LinearActuator::LinearActuator(int leg, int actuator, ControlerAB pins,
   targetPosition = -1; // i.e. not set
   targetPwm = 0.0;
 
-  minPwm = 0.1;
-  Kp = 50.0; // error goes is in m, with Kp=50 we have 100% PWM until 0.02m
+  minPwm = 0.05;
+  Kp = 20.0; // error goes is in m, with Kp=50 we have 100% PWM until 0.02m
   /*
     // dtsec is expected to be 1/Freq = minTickDt
     double err = targetPosition -

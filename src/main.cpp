@@ -49,11 +49,22 @@ LEG ACTU MIN  MAX
 
 unsigned int main_ticking = 0;
 
+#define FREQ 100
+
+ControlerAB C1A(pin_C1A_DIR1, pin_C1A_DIR2, pin_C1A_PWM);
+ControlerAB C1B(pin_C1B_DIR1, pin_C1B_DIR2, pin_C1B_PWM);
+ControlerAB C2A(pin_C2A_DIR1, pin_C2A_DIR2, pin_C2A_PWM);
+ControlerAB C2B(pin_C2B_DIR1, pin_C2B_DIR2, pin_C2B_PWM);
+ControlerAB C3A(pin_C3A_DIR1, pin_C3A_DIR2, pin_C3A_PWM);
+ControlerAB C3B(pin_C3B_DIR1, pin_C3B_DIR2, pin_C3B_PWM);
+
 class NanosToLinearActuator : public NanoComCallback, public Job {
 
 public:
   LinearActuator *la[4][3];
   unsigned int read_ticking[4][3];
+  int setup12 = 0, setup34 = 0;
+  bool setupDone = false;
 
   NanosToLinearActuator() {
     for (int i = 0; i < 4; ++i)
@@ -65,9 +76,43 @@ public:
   void addLinearActuator(LinearActuator *actuator) {
     la[actuator->leg - 1][actuator->actuator - 1] = actuator;
   }
+  void makeSetup12() {
+
+    addLinearActuator(new LinearActuator(1, 1, C1A, 0, 1023, FREQ));
+    addLinearActuator(new LinearActuator(1, 2, C2A, 26, 973, FREQ));
+    addLinearActuator(new LinearActuator(1, 3, C3A, 0, 1023, FREQ));
+
+    addLinearActuator(new LinearActuator(2, 1, C1B, 0, 1023, FREQ));
+    addLinearActuator(new LinearActuator(2, 2, C3B, 35, 969, FREQ));
+    addLinearActuator(new LinearActuator(2, 3, C2B, 0, 1023, FREQ));
+    setupDone = true;
+  }
+  void makeSetup34() { 
+
+addLinearActuator(new LinearActuator(3, 1, C1A, 0, 1023, FREQ));
+addLinearActuator(new LinearActuator(3, 2, C2A, 32, 997, FREQ));
+addLinearActuator(new LinearActuator(3, 3, C3A, 0, 1023, FREQ));
+
+addLinearActuator(new LinearActuator(4, 1, C1B, 0, 1023, FREQ));
+addLinearActuator(new LinearActuator(4, 2, C3B, 24, 1000, FREQ));
+addLinearActuator(new LinearActuator(4, 3, C2B, 0, 1023, FREQ));
+      setupDone = true; 
+      }
   virtual void value(int leg, int actuator, int value) override {
-    if (la[leg - 1][actuator - 1] != nullptr) {
-      la[leg - 1][actuator - 1]->setPositionNano(value);
+    if (setupDone == false) {
+      if ((leg == 1) || (leg == 2))
+        setup12 += 1;
+      if ((leg == 3) || (leg == 4))
+        setup34 += 1;
+      if (setup12 > (setup34 + 5)) {
+        makeSetup12();
+      } else if (setup34 > (setup12 + 5)) {
+        makeSetup34();
+      }
+    } else {
+      if (la[leg - 1][actuator - 1] != nullptr) {
+        la[leg - 1][actuator - 1]->setPositionNano(value);
+      }
     }
   }
 
@@ -156,38 +201,12 @@ public:
   }
 };
 
-#define FREQ 100
-
-ControlerAB C1A(pin_C1A_DIR1, pin_C1A_DIR2, pin_C1A_PWM);
-ControlerAB C1B(pin_C1B_DIR1, pin_C1B_DIR2, pin_C1B_PWM);
-ControlerAB C2A(pin_C2A_DIR1, pin_C2A_DIR2, pin_C2A_PWM);
-ControlerAB C2B(pin_C2B_DIR1, pin_C2B_DIR2, pin_C2B_PWM);
-ControlerAB C3A(pin_C3A_DIR1, pin_C3A_DIR2, pin_C3A_PWM);
-ControlerAB C3B(pin_C3B_DIR1, pin_C3B_DIR2, pin_C3B_PWM);
-
 //#define CONTROLER12
 
 #ifdef CONTROLER12
 
-LinearActuator la11(1, 1, C1A, 0, 1023, FREQ);
-LinearActuator la12(1, 2, C2A, 26, 973, FREQ);
-LinearActuator la13(1, 3, C3A, 0, 1023, FREQ);
-
-LinearActuator la21(2, 1, C1B, 0, 1023, FREQ);
-LinearActuator la22(2, 2, C3B, 35, 969, FREQ);
-LinearActuator la23(2, 3, C2B, 0, 1023, FREQ);
-
 #else
 
-LinearActuator la11(3, 1, C1A, 0, 1023, FREQ);
-LinearActuator la12(3, 2, C2A, 32, 997, FREQ);
-// LinearActuator la13(3, 3, C3A, 0, 1023, FREQ);
-LinearActuator la13(3, 3, C2B, 0, 1023, FREQ);
-
-LinearActuator la21(4, 1, C1B, 0, 1023, FREQ);
-LinearActuator la22(4, 2, C3B, 24, 1000, FREQ);
-// LinearActuator la23(4, 3, C2B, 0, 1023, FREQ);
-LinearActuator la23(4, 3, C3A, 0, 1023, FREQ);
 
 #endif
 
@@ -270,7 +289,9 @@ void set_print_informations_freq(float freq) {
 
 void stop() { nanosToLinearActuators.stop(); }
 
-#define smwrite(s) serialMaster.write(s, strlen(s));serialMaster.sync();
+#define smwrite(s)                                                             \
+  serialMaster.write(s, strlen(s));                                            \
+  serialMaster.sync();
 
 int main() {
 
@@ -286,28 +307,20 @@ int main() {
 
   smwrite("parser setup\n");
 
-  //  serialMaster.set_blocking(false);
-  nanosToLinearActuators.addLinearActuator(&la11);
-  nanosToLinearActuators.addLinearActuator(&la12);
-  nanosToLinearActuators.addLinearActuator(&la13);
-  nanosToLinearActuators.addLinearActuator(&la21);
-  nanosToLinearActuators.addLinearActuator(&la22);
-  nanosToLinearActuators.addLinearActuator(&la23);
 
   smwrite("creating nano serial... ");
 
-
   Job *jobs[5];
   NanoComCallback *nextCb = &nanosToLinearActuators;
-  jobs[0]=&nanosToLinearActuators;
+  jobs[0] = &nanosToLinearActuators;
   NanoDirectCom dcPd2(PD_2, nextCb);
-  jobs[1]=&dcPd2;
+  jobs[1] = &dcPd2;
   NanoDirectCom dcPa1(PA_1, nextCb);
-  jobs[2]=&dcPa1;
+  jobs[2] = &dcPa1;
   NanoDirectCom dcPc5(PC_5, nextCb);
-  jobs[3]=&dcPc5;
+  jobs[3] = &dcPc5;
   NanoMuxCom mc(nextCb);
-  jobs[4]=&mc;
+  jobs[4] = &mc;
   smwrite("done\n");
 
   smwrite("main loop...\n");
@@ -321,13 +334,13 @@ int main() {
       binary_print_global_information();
       lastBinaryInfo = n;
     }
-     //serialMaster.write("B\n", 2);
+    // serialMaster.write("B\n", 2);
 
-    for (int j=0;j<5;++j){
+    for (int j = 0; j < 5; ++j) {
       jobs[j]->tick();
     }
 
-     //serialMaster.write("C\n", 2);
+    // serialMaster.write("C\n", 2);
 
     if (serialMaster.readable()) {
       int c = serialMaster.read(input, 500);
