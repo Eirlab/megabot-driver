@@ -30,7 +30,7 @@ magnitude=(end_pos-start_pos)/2.0
 
 
 print("initialize controler...")
-c=com.ControlerHandler("sin.log") 
+c=com.ControlerHandler() 
 #c.print_string_msg(True)
 time.sleep(1)
 c.send_info(0.1) # ask for update of status from controler every 100ms
