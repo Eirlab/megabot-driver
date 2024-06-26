@@ -106,15 +106,15 @@ class ControlerHandler(Thread):
                           ',pwmtarget=',self.legs[l][a]['pwmtarget'],']')
     
     def run(self):
-        rawfile=open("raw.log","wb")
+        #rawfile=open("raw.log","wb")
         while self.shouldStop==False:
             action=False
             for s in self.serials:
                 if s.in_waiting:
                     action=True
                     d=s.read(5000)
-                    if len(d)>0:
-                        rawfile.write(d)
+                    #if len(d)>0:
+                    #    rawfile.write(d)
                     #print("read ",len(d)," bytes")
                     p=0
                     while p<len(d):
@@ -171,7 +171,7 @@ class ControlerHandler(Thread):
                 time.sleep(0.0001)
         if self.logfile!=None:
             self.logfile.close()
-        rawfile.close()
+        #rawfile.close()
         print("controler thread leaving")
         
 
