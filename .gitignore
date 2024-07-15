@@ -1,0 +1,4 @@
+.pio
+*.code-workspace
+.vscode
+.history

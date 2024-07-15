@@ -130,7 +130,7 @@ public:
     }
     for (int i = 0; i < 4; ++i)
       for (int j = 0; j < 3; ++j)
-        if ((la[i][j] != nullptr) && (la[i][j]->status == LA_STATUS_OK)){
+        if ((la[i][j] != nullptr) && ((la[i][j]->status&LA_STATUS_OK) == LA_STATUS_OK)){
           print("L%d%d#%lf(%d)#%lf#%lf#%lf#", i + 1, j + 1,
                 la[i][j]->getPosition(),la[i][j]->posNanoRaw, la[i][j]->getTargetPosition(),
                 la[i][j]->getCurrentPwm(), la[i][j]->getTargetPwm());
@@ -191,9 +191,9 @@ public:
     //     };
     for (int i = 0; i < 4; ++i)
     {
-     // if ((la[i][0] != nullptr) || (la[i][1] != nullptr) ||
-     //     (la[i][2] != nullptr))
-     // {
+      if ((la[i][0] != nullptr) || (la[i][1] != nullptr) ||
+          (la[i][2] != nullptr)) // Send info only about contoler legs (12 or 34)
+      {
         struct Info info;
         info.head = INFO_HEADER;
         info.leg = i + 1;
@@ -221,7 +221,7 @@ public:
         info.crc1 = get_crc((unsigned char *)&info, sizeof(info) - 2);
         info.crc2 = get_crc((unsigned char *)&info, sizeof(info) - 1);
         Serial.write((const uint8_t *)&info, sizeof(info));
-      //}
+      }
     }
   }
 

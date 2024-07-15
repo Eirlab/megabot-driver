@@ -80,8 +80,8 @@ void LinearActuator::setPositionNano(uint16_t mesure_int)
                (float)(posMaxNano - posMinNano);
   lastNanoReadMs = millis();
 
-  if (leg == 1 && actuator ==3)
-    Serial.printf("position: %f at %d \n", position, lastNanoReadMs);
+  //if (leg == 1 && actuator ==&)
+  //Serial.printf("position: %f at %d \n", position, lastNanoReadMs);
 }
 
 void LinearActuator::paramPID(float Kp, float Ki, float Kd)
@@ -106,6 +106,8 @@ void LinearActuator::moveTo(float position, float power)
 {
   if ((power < 0) || (power > 0.97))
     maxPwm = 0.97;
+  else
+    maxPwm=power;
 
   if (position > actuatorLength)
     position = actuatorLength;
@@ -124,6 +126,7 @@ void LinearActuator::moveTo(float position, float power)
     cumulativeError = 0.0; // reset Integrale
     lastError = targetPosition - position;
   }
+  Serial.printf("move receive: %f %f => max power=%f target pos=%f\n",position,power,maxPwm,targetPosition);
 }
 
 void LinearActuator::tick()
