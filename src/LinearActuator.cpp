@@ -28,7 +28,7 @@ LinearActuator::LinearActuator(int leg, int actuator, ControlerAB pins,
 
   Kp = 20.0; // error is in m, max error in 0.2, with Kp=5 we have 100% PWM on max error
   // Kp=50 means pwm is 1.0 until 0.02 error
-  Ki = 10;
+  Ki = 20.0;
   Kd = 0;
   positionError = 0;
   lastError = 0;
@@ -140,14 +140,14 @@ void LinearActuator::tick()
     // we possibily lost nano, emergency stop
     currentPwm = 0.0;
     position = -1.0;
-    set(1, 1, 0.0);
+    set(0, 0, 0.0);
     return;
   }
   if ((position < 0) || (targetPosition < 0))
   {
     status |= LA_STATUS_STOP;
     currentPwm = 0.0;
-    set(1, 1, 0.0);
+    set(0, 0, 0.0);
     return;
   }
 
@@ -195,6 +195,18 @@ void LinearActuator::tick()
 
   lastError = positionError;
 
+  
+  if (fabs(positionError)<targetTolerance){
+    targetPwm=0.0;
+  }
+  /*
+  if (fabs(targetPwm)<minPwm){
+    targetPwm=0.0;
+  }
+  */
+
+
+ 
   if (targetPwm > maxPwm)
     targetPwm = maxPwm;
   if (targetPwm < -maxPwm)
@@ -207,7 +219,7 @@ void LinearActuator::tick()
   {
     status = LA_STATUS_EMERGENCY_AREA;
     currentPwm = 0.0;
-    set(1, 1, 0.0);
+    set(0, 0, 0.0);
     return;
   }
   // - safe

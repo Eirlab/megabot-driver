@@ -62,6 +62,8 @@ public:
   float currentPwm=0.0;
   float slopePwm=0.03; // 0 to 1.0 in 40ms
   float maxPwm=0.97;
+  float minPwm=0.2;
+  float targetTolerance=0.005;
   // safe area:
   float safeArea = 0.03; // 3cm from limits
   float safePwm = 0.5; // 50%
