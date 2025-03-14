@@ -21,10 +21,19 @@ class NanoDirectCom : public Job  {
   char *buffer;
   int bufferSize;
   uint32_t v = 0;
+
+  bool check_nano(uint32_t value, int &legSelected, int &linearActuatorSelected,
+                uint16_t &mesureInt);
   public:
   NanoDirectCom(HardwareSerial *rx, NanoComCallback *next);
   virtual const char *name() const;
   virtual void tick() override;
+  void resetStats();
+
+  unsigned int parityError=0;
+  unsigned int crcError=0;
+  unsigned int dataError=0;
+  unsigned int valid=0;
 };
 
 #endif 

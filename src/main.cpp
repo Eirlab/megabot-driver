@@ -11,6 +11,7 @@
 #define print(...) Serial.printf(__VA_ARGS__)
 
 HardwareSerialIMXRT *s[] = {&Serial1, &Serial3, &Serial4, &Serial5, &Serial7, &Serial8};
+NanoDirectCom *nanoCom[sizeof(s) / sizeof(s[0])];
 
 #define FREQ 100
 
@@ -40,19 +41,19 @@ public:
         la[i][j] = nullptr;
         read_ticking[i][j] = 0;
       }
-      // DEBUG!!!
-    //makeSetup12();
-      // TO REMOVE
+    // DEBUG!!!
+    // makeSetup12();
+    //  TO REMOVE
   }
   void addLinearActuator(LinearActuator *actuator)
   {
     la[actuator->leg - 1][actuator->actuator - 1] = actuator;
   }
 
-  virtual const char *name() const {
+  virtual const char *name() const
+  {
     return "nanoToLA";
   }
-
 
   void makeSetup12()
   {
@@ -130,24 +131,25 @@ public:
     }
     for (int i = 0; i < 4; ++i)
       for (int j = 0; j < 3; ++j)
-        if ((la[i][j] != nullptr) && ((la[i][j]->status&LA_STATUS_OK) == LA_STATUS_OK)){
+        if ((la[i][j] != nullptr) && ((la[i][j]->status & LA_STATUS_OK) == LA_STATUS_OK))
+        {
           print("L%d%d#%lf(%d)#%lf#%lf#%lf#", i + 1, j + 1,
-                la[i][j]->getPosition(),la[i][j]->posNanoRaw, la[i][j]->getTargetPosition(),
+                la[i][j]->getPosition(), la[i][j]->posNanoRaw, la[i][j]->getTargetPosition(),
                 la[i][j]->getCurrentPwm(), la[i][j]->getTargetPwm());
           print("#tick(%d;%d;%d)#posErr(%.3lf)#lastErr(%.3lf)#cumErr(%.3lf)#dir(%d)",
-                la[i][j]->nticking,la[i][j]->lastTickMs,la[i][j]->tickCalls,la[i][j]->positionError,la[i][j]->lastError,
-                la[i][j]->cumulativeError,la[i][j]->direction);
-          if (la[i][j]->status&LA_STATUS_OK)
+                la[i][j]->nticking, la[i][j]->lastTickMs, la[i][j]->tickCalls, la[i][j]->positionError, la[i][j]->lastError,
+                la[i][j]->cumulativeError, la[i][j]->direction);
+          if (la[i][j]->status & LA_STATUS_OK)
             print(" ok ");
-          if (la[i][j]->status&LA_STATUS_MISSING)
+          if (la[i][j]->status & LA_STATUS_MISSING)
             print(" missing ");
-          if (la[i][j]->status&LA_STATUS_MISSING_NANO)
+          if (la[i][j]->status & LA_STATUS_MISSING_NANO)
             print(" nano_missing ");
-          if (la[i][j]->status&LA_STATUS_SAFE_AREA)
+          if (la[i][j]->status & LA_STATUS_SAFE_AREA)
             print(" safe_area ");
-          if (la[i][j]->status&LA_STATUS_EMERGENCY_AREA)
+          if (la[i][j]->status & LA_STATUS_EMERGENCY_AREA)
             print(" emergency_area ");
-          if (la[i][j]->status&LA_STATUS_STOP)
+          if (la[i][j]->status & LA_STATUS_STOP)
             print(" stop ");
           print("\n");
         }
@@ -247,8 +249,7 @@ std::vector<Job *> jobs;
 
 NanoDebug nanoDebug;
 NanosToLinearActuator nanosToLinearActuators;
-XMedianFilter medianFilter(5,4*FREQ,&nanosToLinearActuators);
-
+XMedianFilter medianFilter(5, 4 * FREQ, &nanosToLinearActuators);
 
 uint32_t loopTime;
 char input[500];
@@ -293,13 +294,14 @@ void setup()
   {
     s[i]->begin(NANO_BAUDRATE);
     // jobs.push_back(new NanoDirectCom(s[i], &nanoDebug));
-    jobs.push_back(new NanoDirectCom(s[i], &medianFilter));
+    nanoCom[i] = new NanoDirectCom(s[i], &medianFilter);
+    jobs.push_back(nanoCom[i]);
   }
   jobs.push_back(&nanosToLinearActuators);
 
   // set parser callbacks:
   parser.l_cb = move_order;
-  //parser.error_cb = parser_error;
+  // parser.error_cb = parser_error;
   parser.i_cb = print_informations;
   parser.p_cb = set_print_informations_freq;
   parser.s_cb = stop;
@@ -312,32 +314,57 @@ void setup()
 /* Main Loop */
 unsigned long loopCounter = 0;
 
+// STATS:
+// #define NANO_STATS
+// #define JOB_STATS
+// #define ACTUATOR_STATS
+
+#ifdef NANO_STATS
+auto nanoTime = millis();
+#endif
+
 void loop()
 {
-
-  auto loopStart = millis();
-  /** MAIN LOOP ***/
+/** MAIN LOOP ***/
+#ifdef NANO_STATS
+  if ((millis() - nanoTime) > 1000)
+  {
+    Serial.printf("\nNano com stats:\n");
+    for (unsigned int i = 0; i < sizeof(nanoCom) / sizeof(nanoCom[0]); ++i)
+    {
+      Serial.printf("%d : parity %d crc %d data %d ok %d\n", i, nanoCom[i]->parityError, nanoCom[i]->crcError, nanoCom[i]->dataError, nanoCom[i]->valid);
+      nanoCom[i]->resetStats();
+    }
+    nanoTime = millis();
+  }
+#endif
 
   loopCounter += 1;
   // Serial.printf("hello\n");
-  
-  for (auto &j : jobs){
-    auto t=millis();
+
+  for (auto &j : jobs)
+  {
+    auto t = millis();
     j->tick();
-    if ((millis()-t)>1){
-      Serial.printf("***** job %s %p take %d ms *****\n",j->name(),millis()-t);
+#ifdef JOB_STATS
+    if ((millis() - t) > 1)
+    {
+      Serial.printf("***** job %s %p take %d ms *****\n", j->name(), millis() - t);
     }
+#endif
   }
 
-  if ((millis() - loopTime) > 100)
+#ifdef ACTUATOR_STATS
+  if ((millis() - loopTime) > 1000)
   {
     Serial.printf("loop counter= %d \n", loopCounter);
     nanosToLinearActuators.print_informations();
     loopTime = millis();
     loopCounter = 0;
   }
-  int v;
-  if ((Serial.available())>0)
+#endif
+
+  if ((Serial.available()) > 0)
   {
     int r = Serial.readBytes(input, sizeof(input));
     parser.append(input, r);
@@ -345,19 +372,13 @@ void loop()
 
   if (print_freq > 0)
   {
-    if ((millis()-lastPrint) > print_freq)
+    if ((millis() - lastPrint) > print_freq)
     {
-      //Serial.printf("send informations...\n");
+      // Serial.printf("send informations...\n");
       print_informations();
       lastPrint = millis();
     }
   }
-
-  if ((millis()-loopStart)>3)
-  {
-    Serial.printf("**** main loop take %d ms ***** \n",millis()-loopStart);
-  }
-
 
   /**** CODE BELOW IS FOR CHECKING DRIVERS PINS ****/
   /***

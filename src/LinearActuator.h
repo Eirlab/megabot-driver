@@ -60,7 +60,7 @@ public:
   // pwm
   float targetPwm=0.0;
   float currentPwm=0.0;
-  float slopePwm=0.03; // 0 to 1.0 in 40ms
+  float slopePwm=0.3; // 0 to 1.0 in 40ms
   float maxPwm=0.97;
   float minPwm=0.2;
   float targetTolerance=0.005;
